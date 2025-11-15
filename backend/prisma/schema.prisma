@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  role          String    @default("USER")
+  createdAt     DateTime  @default(now())
+  todos         Todo[]
+  sessions      Session[]
+}
+
+model Todo {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  title       String
+  description String?
+  priority    Int       @default(2)      // 1=high,2=normal,3=low
+  status      String    @default("OPEN") // OPEN, IN_PROGRESS, DONE
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  refreshToken String   @unique
+  expiresAt    DateTime
+  user         User     @relation(fields: [userId], references: [id])
+}
