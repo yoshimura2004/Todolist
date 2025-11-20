@@ -1,42 +1,164 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* === 기본 리셋 & 배경 === */
+* {
+  box-sizing: border-box;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans KR",
+    sans-serif;
+  color: #111111;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* === 전체 레이아웃 (모바일 우선) === */
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+.app-container {
+  width: 100%;
+  max-width: 480px; /* 모바일~작은 태블릿까지 보기 좋게 */
+  padding: 32px 16px 48px;
+}
+
+/* === 헤더 영역 === */
+.app-header {
+  margin-bottom: 24px;
+}
+
+.app-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.03em;
+}
+
+.app-subtitle {
+  font-size: 14px;
+  color: #7a7a7a;
+  margin-top: 6px;
+}
+
+/* === 상태 텍스트 === */
+.status-text {
+  font-size: 13px;
+  color: #7a7a7a;
+  margin: 8px 0 4px;
+}
+
+.status-text.error {
+  color: #d32f2f;
+}
+
+/* === 빈 목록 표시 === */
+.empty-text {
+  font-size: 14px;
+  color: #7a7a7a;
+  margin-top: 12px;
+}
+
+/* === 입력 폼 (상단 인풋 + 플로팅 버튼 느낌) === */
+.todo-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.todo-input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid #e4e4e4;
+  font-size: 14px;
+  outline: none;
+}
+
+.todo-input:focus {
+  border-color: #111111;
+}
+
+.todo-add-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: #000000;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* === 카드 리스트 컨테이너 === */
+.todo-list {
+  margin-top: 8px;
+}
+
+/* === 카드 기본 스타일 === */
+.todo-card {
+  background: #f8f8f8;
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 1px solid #e4e4e4;
+  margin-bottom: 12px;
+}
+
+/* 카드 내용 영역 */
+.todo-card-main {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 제목 */
+.todo-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* 설명 */
+.todo-desc {
+  font-size: 13px;
+  color: #7a7a7a;
+}
+
+/* 카드 하단 버튼 영역 */
+.todo-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+/* 삭제 버튼 (블랙&화이트 느낌 유지) */
+.todo-delete-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: #111111;
+  color: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* 버튼 터치 영역 넉넉하게 */
+.todo-delete-btn:active,
+.todo-add-btn:active {
+  transform: translateY(1px);
+}
+
+/* === 조금 큰 화면에서 여백만 살짝 넓히기 === */
+@media (min-width: 768px) {
+  .app-container {
+    padding-top: 48px;
   }
-  to {
-    transform: rotate(360deg);
+
+  .app-title {
+    font-size: 32px;
   }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }
