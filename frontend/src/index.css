@@ -111,7 +111,7 @@ body {
 .todo-card {
   background: #f8f8f8;
   border-radius: 16px;
-  padding: 14px 16px;
+  padding: 10px 14px;
   border: 1px solid #e4e4e4;
   margin-bottom: 12px;
 }
@@ -305,6 +305,113 @@ body {
   color: #9a9a9a;
   margin-bottom: 4px;
 }
+
+/* 요약 헤더 */
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-header-right {
+  display: flex;
+  gap: 8px;
+}
+
+/* 전체 Todo 보기 버튼 */
+.summary-all-btn {
+  border: 1px solid #111;
+  background: #fff;
+  color: #111;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.summary-all-btn:active {
+  transform: translateY(1px);
+}
+
+/* 정렬 방향 토글 버튼 */
+.sort-toggle-btn {
+  border: 1px solid #e4e4e4;
+  background: #f7f7f7;
+  color: #111;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sort-toggle-btn:active {
+  transform: translateY(1px);
+}
+
+/* D-Day 라벨 */
+.todo-dday {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #ffecec;
+  color: #e53935;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* 다가오는 일정 섹션 */
+.upcoming-section {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #110606;
+  color: #ffffff;
+}
+
+.upcoming-section h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+.upcoming-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.upcoming-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 14px;
+  padding: 10px 14px;
+  border: 1px solid #ececec;
+}
+
+.upcoming-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.upcoming-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.upcoming-date {
+  font-size: 12px;
+  color: #d0d0d0;
+}
+
+.todo-card.today {
+  border: 2px solid #4da3ff;
+}
+
+
 /* === 반응형 (태블릿 이상에서 여백/폭 넓히기) === */
 @media (min-width: 768px) {
   .app-container {

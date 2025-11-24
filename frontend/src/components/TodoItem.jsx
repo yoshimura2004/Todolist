@@ -1,10 +1,11 @@
+// src/components/TodoItem.jsx
 import { useState } from "react"
 
-function formatDate(dateStr) {
+function formatDate(todo) {
+  const dateStr = todo.dueDate || todo.createdAt
   if (!dateStr) return "날짜 없음"
 
   const d = new Date(dateStr)
-  // 예: 2025. 11. 21 (금)
   return d.toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "2-digit",
@@ -13,42 +14,66 @@ function formatDate(dateStr) {
   })
 }
 
+function getDdayLabel(todo) {
+  if (!todo.dueDate) return null
+
+  const today = new Date()
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+  const d = new Date(todo.dueDate)
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+  const diffDays = Math.round(
+    (target - base) / (1000 * 60 * 60 * 24),
+  )
+
+  if (diffDays === 0) return "오늘"
+  if (diffDays === 1) return "하루 남음"
+  if (diffDays > 1) return `D-${diffDays}`
+  return `D+${Math.abs(diffDays)}`
+}
+
 function TodoItem({ todo, onDelete, onToggle, onUpdate }) {
   const isDone = todo.status === "DONE"
 
-  // ✅ 수정 모드 관련 상태
+  // ✅ 오늘 일정인지 여부
+  const isToday =
+    todo.dueDate &&
+    new Date(todo.dueDate).toDateString() === new Date().toDateString()
+
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(todo.title)
 
   const handleSave = () => {
     const trimmed = editTitle.trim()
     if (!trimmed) return
-
     onUpdate(todo.id, { title: trimmed })
     setIsEditing(false)
   }
 
   const handleCancel = () => {
-    setEditTitle(todo.title) // 원래 제목으로 되돌리기
+    setEditTitle(todo.title)
     setIsEditing(false)
   }
 
-  return (
-    <div className={`todo-card ${isDone ? "done" : ""}`}>
-      <div className="todo-card-main">
-        {/* 🔹 날짜 라벨 */}
-        <div className="todo-date">{formatDate(todo.dueDate)}</div>
+  const ddayLabel = getDdayLabel(todo)
 
-        {/* ✏️ 수정 모드일 때 */}
+  return (
+    <div className={`todo-card ${isDone ? "done" : ""} ${isToday ? "today" : ""}`}>
+      <div className="todo-card-main">
+        <div className="todo-date">
+          {formatDate(todo)}
+          {ddayLabel && <span className="todo-dday">{ddayLabel}</span>}
+        </div>
+
         {isEditing ? (
           <input
-            className="todo-input" // 기존 인풋 스타일 재사용
+            className="todo-input"
             type="text"
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
           />
         ) : (
-          // 평소 표시 모드
           <div className="todo-title">
             {isDone ? "✅ " : "○ "}
             {todo.title}

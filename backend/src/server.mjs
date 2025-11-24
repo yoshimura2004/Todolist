@@ -100,8 +100,6 @@ app.post('/init-user', async (req, res) => {
  * - 로그인/인증은 아직 없으니, 일단 userId = 1 고정으로 사용
  */
 app.post('/todos', async (req, res) => {
-  console.log('POST /todos body:', req.body)
-
   const { title, description, priority, dueDate } = req.body ?? {}
 
   if (!title) {
@@ -115,8 +113,8 @@ app.post('/todos', async (req, res) => {
         description: description || null,
         priority: priority ?? 2,
         userId: 1,
-        // 🔽 클라이언트에서 YYYY-MM-DD 형태로 주면 Date로 변환
-        dueDate: dueDate ? new Date(dueDate) : null,
+        // 🔹 여기! 문자열(YYYY-MM-DD)로 왔다고 가정
+        dueDate: dueDate ? new Date(`${dueDate}T09:00:00`) : null,
       },
     })
 

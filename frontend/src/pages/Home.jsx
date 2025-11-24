@@ -11,6 +11,9 @@ function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  // 🔽 정렬 방향: desc = 최신 날짜 → 위 / asc = 오래된 날짜 → 위
+  const [sortDirection, setSortDirection] = useState("desc")
+
   // 🔽 달력 & 모달 관련 상태
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
@@ -18,8 +21,8 @@ function Home() {
   const [selectedDate, setSelectedDate] = useState(null)
   const [dailyTodos, setDailyTodos] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
-  const listToShow = selectedDate ? dailyTodos : todos
-  // 초기 전체 목록(원하면 “이번달 전체”로 사용할 수 있음)
+
+  // 초기 전체 목록
   useEffect(() => {
     fetchTodos()
   }, [])
@@ -38,6 +41,50 @@ function Home() {
     }
   }
 
+  // 🔽 날짜 기준 정렬 함수
+  const sortTodos = (list, direction = "desc") => {
+    const dir = direction === "asc" ? 1 : -1
+    return [...list].sort((a, b) => {
+      const hasDueA = !!a.dueDate
+      const hasDueB = !!b.dueDate
+
+      // 1) dueDate 있는 항목이 항상 위로 (미정 날짜는 맨 아래)
+      if (hasDueA !== hasDueB) {
+        return hasDueA ? -1 : 1
+      }
+
+      // 2) 둘 다 dueDate 없으면 createdAt 기준
+      const dateA = new Date(a.dueDate ?? a.createdAt)
+      const dateB = new Date(b.dueDate ?? b.createdAt)
+
+      const base = dateA - dateB // 음수면 A가 더 과거
+      return base * dir
+    })
+  }
+
+  // 🔽 화면에 보여줄 목록 (선택된 날짜가 있으면 dailyTodos, 아니면 전체)
+  const listToShow = selectedDate
+    ? sortTodos(dailyTodos, sortDirection)
+    : sortTodos(todos, sortDirection)
+
+  // 🔽 "다가오는 일정" (오늘 ~ 7일 후, 완료되지 않은 것만)
+  const upcomingTodos = (() => {
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const end = new Date(start)
+    end.setDate(end.getDate() + 7)
+
+    const filtered = todos.filter((t) => {
+      if (!t.dueDate) return false
+      if (t.status === "DONE") return false
+
+      const d = new Date(t.dueDate)
+      const onlyDate = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+      return onlyDate >= start && onlyDate <= end
+    })
+
+    return sortTodos(filtered, "asc") // 다가오는 일정은 항상 오래된 순(가까운 날 → 위)
+  })()
+
   const handleAddTodo = async ({ title }) => {
     try {
       setLoading(true)
@@ -45,19 +92,20 @@ function Home() {
 
       const payload = {
         title,
-        description: "프론트에서 추가한 Todo",
+        description: "Todo",
         priority: 2,
-        // 🔽 모달에서 추가했다면 선택된 날짜로 dueDate 지정
         dueDate: selectedDate ?? null,
       }
 
-      const newTodo = await todoApi.createTodo(payload)
+      // 저장 후 서버 기준으로 다시 불러와 동기화
+      await todoApi.createTodo(payload)
 
-      setTodos((prev) => [newTodo, ...prev])
+      const all = await todoApi.getTodos()
+      setTodos(all)
 
-      // 모달이 열려 있고 해당 날짜면 dailyTodos도 갱신
-      if (selectedDate && newTodo.dueDate?.startsWith?.(selectedDate)) {
-        setDailyTodos((prev) => [newTodo, ...prev])
+      if (selectedDate) {
+        const list = await todoApi.getTodosByDate(selectedDate)
+        setDailyTodos(list)
       }
     } catch (err) {
       console.error(err)
@@ -161,6 +209,60 @@ function Home() {
     }
   }
 
+  // 🔽 전체 Todo 보기 버튼
+  const handleShowAll = async () => {
+    try {
+      setSelectedDate(null)
+      setModalOpen(false)
+      setLoading(true)
+      setError(null)
+
+      const all = await todoApi.getTodos()
+      setTodos(all)
+      setDailyTodos([])
+    } catch (err) {
+      console.error(err)
+      setError("전체 Todo 조회 중 오류가 발생했습니다.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 🔽 정렬 방향 토글 버튼
+  const handleToggleSortDirection = () => {
+    setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"))
+  }
+
+  // 다가오는 일정 섹션에서 쓸 날짜 + D-Day 포맷
+  const formatUpcomingDate = (dateStr) => {
+    if (!dateStr) return ""
+    const d = new Date(dateStr)
+    return d.toLocaleDateString("ko-KR", {
+      month: "2-digit",
+      day: "2-digit",
+      weekday: "short",
+    })
+  }
+
+  const getDdayLabelFromDate = (dateStr) => {
+    if (!dateStr) return ""
+
+    const today = new Date()
+    const base = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+    const d = new Date(dateStr)
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+    const diffDays = Math.round(
+      (target - base) / (1000 * 60 * 60 * 24),
+    )
+
+    if (diffDays === 0) return "오늘"
+    if (diffDays === 1) return "하루 남음"
+    if (diffDays > 1) return `D-${diffDays}`
+    return `D+${Math.abs(diffDays)}`
+  }
+
   return (
     <div className="app-root">
       <div className="app-container">
@@ -187,19 +289,61 @@ function Home() {
           />
         </div>
 
-      {/* 🔽 전체 Todo 목록 섹션 */}
-      <section className="summary-section">
-        <h2>전체 Todo 목록</h2>
-        {loading && <p className="status-text">⏳ 처리 중...</p>}
-        {error && <p className="status-text error">{error}</p>}
+        {/* 🔽 다가오는 일정 섹션 */}
+        {upcomingTodos.length > 0 && (
+          <section className="upcoming-section">
+            <h2>다가오는 일정</h2>
+            <ul className="upcoming-list">
+              {upcomingTodos.map((todo) => (
+                <li key={todo.id} className="upcoming-item">
+                  <div className="upcoming-main">
+                    <span className="upcoming-title">{todo.title}</span>
+                    <span className="upcoming-date">
+                      {formatUpcomingDate(todo.dueDate)} ·{" "}
+                      {getDdayLabelFromDate(todo.dueDate)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-        <TodoList
-          todos={listToShow}          // ✅ 여기!
-          onDelete={handleDeleteTodo}
-          onToggle={handleToggleTodo}
-          onUpdate={handleUpdateTodo}
-        />
-      </section>
+        {/* 🔽 전체 / 선택된 날짜 Todo 목록 섹션 */}
+        <section className="summary-section">
+          <div className="summary-header">
+            <h2>
+              {selectedDate ? `${selectedDate} Todo 목록` : "전체 Todo 목록"}
+            </h2>
+
+            <div className="summary-header-right">
+              <button
+                type="button"
+                className="summary-all-btn"
+                onClick={handleShowAll}
+              >
+                전체 Todo 보기
+              </button>
+              <button
+                type="button"
+                className="sort-toggle-btn"
+                onClick={handleToggleSortDirection}
+              >
+                {sortDirection === "desc" ? "최신 날짜순" : "오래된 날짜순"}
+              </button>
+            </div>
+          </div>
+
+          {loading && <p className="status-text">⏳ 처리 중...</p>}
+          {error && <p className="status-text error">{error}</p>}
+
+          <TodoList
+            todos={listToShow}
+            onDelete={handleDeleteTodo}
+            onToggle={handleToggleTodo}
+            onUpdate={handleUpdateTodo}
+          />
+        </section>
 
         {/* 🔽 날짜별 Todo 모달 */}
         <Modal
@@ -207,11 +351,10 @@ function Home() {
           onClose={() => setModalOpen(false)}
           title={selectedDate ? `${selectedDate} 할 일` : "할 일"}
         >
-          {/* 이 모달 안에서만 사용할 TodoForm */}
           <TodoForm onAdd={handleAddTodo} />
 
           <TodoList
-             todos={listToShow} 
+            todos={listToShow}
             onDelete={handleDeleteTodo}
             onToggle={handleToggleTodo}
             onUpdate={handleUpdateTodo}
