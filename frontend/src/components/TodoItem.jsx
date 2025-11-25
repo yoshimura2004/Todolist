@@ -1,17 +1,25 @@
 // src/components/TodoItem.jsx
 import { useState } from "react"
 
-function formatDate(todo) {
+function formatDateTime(todo) {
   const dateStr = todo.dueDate || todo.createdAt
   if (!dateStr) return "날짜 없음"
 
   const d = new Date(dateStr)
-  return d.toLocaleDateString("ko-KR", {
+
+  const datePart = d.toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     weekday: "short",
   })
+
+  const timePart = d.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+
+  return { datePart, timePart }
 }
 
 function getDdayLabel(todo) {
@@ -36,7 +44,6 @@ function getDdayLabel(todo) {
 function TodoItem({ todo, onDelete, onToggle, onUpdate }) {
   const isDone = todo.status === "DONE"
 
-  // ✅ 오늘 일정인지 여부
   const isToday =
     todo.dueDate &&
     new Date(todo.dueDate).toDateString() === new Date().toDateString()
@@ -57,12 +64,14 @@ function TodoItem({ todo, onDelete, onToggle, onUpdate }) {
   }
 
   const ddayLabel = getDdayLabel(todo)
+  const { datePart, timePart } = formatDateTime(todo)
 
   return (
     <div className={`todo-card ${isDone ? "done" : ""} ${isToday ? "today" : ""}`}>
       <div className="todo-card-main">
-        <div className="todo-date">
-          {formatDate(todo)}
+        <div className="todo-date-row">
+          <span className="todo-date-main">{datePart}</span>
+          <span className="todo-time">{timePart}</span>
           {ddayLabel && <span className="todo-dday">{ddayLabel}</span>}
         </div>
 

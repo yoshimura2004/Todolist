@@ -69,6 +69,53 @@ body {
   gap: 8px;
   margin-bottom: 18px;
 }
+/* TodoForm 전체 래퍼 (모달 안에서 여백 조정용) */
+.todo-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 시간 선택 줄 */
+.todo-time-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* 공통 select 스타일 */
+.time-select {
+  border-radius: 999px;
+  border: 1px solid #e4e4e4;
+  background: #fafafa;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #333;
+  outline: none;
+  appearance: none; /* 기본 화살표 제거 (브라우저마다 약간 다르긴 함) */
+}
+
+/* 오전/오후는 조금 좁게, 시/분은 조금 넓게 */
+.time-select-ampm {
+  min-width: 70px;
+}
+
+.time-select-hour,
+.time-select-minute {
+  min-width: 90px;
+}
+
+/* 포커스 시 테두리 강조 */
+.time-select:focus {
+  border-color: #111111;
+  background: #ffffff;
+}
+
+/* 모바일에서 터치 시 살짝 눌리는 느낌 */
+.time-select:active {
+  transform: translateY(1px);
+}
 
 .todo-input {
   flex: 1;
@@ -237,6 +284,21 @@ body {
   cursor: pointer;
   background: #f8f8f8;
   min-height: 32px;
+   position: relative;
+}
+.calendar-dot {
+  width: 6px;
+  height: 6px;
+  background: #ff4b4b;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.calendar-day.has-todo {
+  border: 1px solid #ffd1d1;
 }
 
 .calendar-day.selected {
@@ -305,7 +367,23 @@ body {
   color: #9a9a9a;
   margin-bottom: 4px;
 }
+.todo-date-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #9a9a9a;
+  margin-bottom: 4px;
+}
 
+.todo-date-main {
+  font-weight: 500;
+}
+
+.todo-time {
+  font-size: 12px;
+  color: #b0b0b0;
+}
 /* 요약 헤더 */
 .summary-header {
   display: flex;

@@ -113,8 +113,8 @@ app.post('/todos', async (req, res) => {
         description: description || null,
         priority: priority ?? 2,
         userId: 1,
-        // 🔹 여기! 문자열(YYYY-MM-DD)로 왔다고 가정
-        dueDate: dueDate ? new Date(`${dueDate}T09:00:00`) : null,
+        // ⬇️ "2025-11-27T21:30:00" 같은 문자열을 그대로 Date로 변환
+        dueDate: dueDate ? new Date(dueDate) : null,
       },
     })
 
@@ -127,6 +127,7 @@ app.post('/todos', async (req, res) => {
     res.status(500).json({ error: 'DB 저장 중 오류 발생' })
   }
 })
+
 
 
 
@@ -254,35 +255,36 @@ app.patch('/todos/:id', async (req, res) => {
 
 // ✅ 날짜별 Todo 조회: GET /todos/by-date?date=2025-11-20
 app.get('/todos/by-date', async (req, res) => {
-  const { date } = req.query
-
+  const { date } = req.query // 'YYYY-MM-DD'
   if (!date) {
-    return res.status(400).json({ error: 'date 쿼리 파라미터가 필요합니다. 예: /todos/by-date?date=2025-11-20' })
+    return res.status(400).json({ error: 'date 쿼리스트링이 필요합니다.' })
   }
 
   try {
-    // date 문자열을 Date로 변환 (로컬 기준으로 단순 처리)
-    const start = new Date(date)           // 2025-11-20 00:00
-    const end = new Date(date)
-    end.setDate(end.getDate() + 1)         // 2025-11-21 00:00
+    const [year, month, day] = date.split('-').map(Number)
+
+    // 로컬 기준: 해당 날짜 00:00 ~ 다음날 00:00 전까지
+    const start = new Date(year, month - 1, day, 0, 0, 0)
+    const end = new Date(year, month - 1, day + 1, 0, 0, 0)
 
     const todos = await prisma.todo.findMany({
       where: {
-        userId: 1, // TODO: 나중에 로그인 연동 시 변경
+        userId: 1,
         dueDate: {
           gte: start,
           lt: end,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { dueDate: 'asc' },
     })
 
     res.json(todos)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ error: '날짜별 Todo 조회 중 오류 발생' })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: '날짜별 Todo 조회 중 오류' })
   }
 })
+
 
 // 🔚 서버 실행 부분 (파일 맨 아래에 위치)
 const PORT = 4000

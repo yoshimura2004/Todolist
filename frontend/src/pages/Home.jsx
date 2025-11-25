@@ -14,6 +14,13 @@ function Home() {
   // 🔽 정렬 방향: desc = 최신 날짜 → 위 / asc = 오래된 날짜 → 위
   const [sortDirection, setSortDirection] = useState("desc")
 
+  const toLocalDateStr = (isoString) => {
+  const d = new Date(isoString)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
   // 🔽 달력 & 모달 관련 상태
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
@@ -21,6 +28,12 @@ function Home() {
   const [selectedDate, setSelectedDate] = useState(null)
   const [dailyTodos, setDailyTodos] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
+const todoDates = todos
+  .filter((t) => t.dueDate)
+  .map((t) => toLocalDateStr(t.dueDate)) // "2025-11-27T09:00:00..." -> "2025-11-27"
+  // ISO 문자열을 로컬 기준 YYYY-MM-DD 로 바꾸는 함수
+
+
 
   // 초기 전체 목록
   useEffect(() => {
@@ -85,35 +98,54 @@ function Home() {
     return sortTodos(filtered, "asc") // 다가오는 일정은 항상 오래된 순(가까운 날 → 위)
   })()
 
-  const handleAddTodo = async ({ title }) => {
-    try {
-      setLoading(true)
-      setError(null)
+  // src/pages/Home.jsx 중 일부
 
-      const payload = {
-        title,
-        description: "Todo",
-        priority: 2,
-        dueDate: selectedDate ?? null,
-      }
+// ⬇️ 기존: const handleAddTodo = async ({ title }) => {
+const handleAddTodo = async ({ title, ampm, hour, minute }) => {
+  try {
+    setLoading(true)
+    setError(null)
 
-      // 저장 후 서버 기준으로 다시 불러와 동기화
-      await todoApi.createTodo(payload)
+    // 🔹 날짜 + 시간 합쳐서 ISO 문자열 만들기
+    let dueDate = selectedDate ?? null
 
-      const all = await todoApi.getTodos()
-      setTodos(all)
+    if (selectedDate && ampm && hour != null && minute != null) {
+      let h24 = Number(hour)
 
-      if (selectedDate) {
-        const list = await todoApi.getTodosByDate(selectedDate)
-        setDailyTodos(list)
-      }
-    } catch (err) {
-      console.error(err)
-      setError("Todo 추가 중 오류가 발생했습니다.")
-    } finally {
-      setLoading(false)
+      // 12시간 → 24시간 변환
+      if (ampm === "PM" && h24 < 12) h24 += 12
+      if (ampm === "AM" && h24 === 12) h24 = 0
+
+      const hh = String(h24).padStart(2, "0")
+      const mm = String(minute).padStart(2, "0")
+
+      // 예: "2025-11-27T21:30:00"
+      dueDate = `${selectedDate}T${hh}:${mm}:00`
     }
+
+    const payload = {
+      title,
+      description: "프론트에서 추가한 Todo",
+      priority: 2,
+      dueDate, // ⬅️ 날짜+시간 들어간 문자열
+    }
+
+    await todoApi.createTodo(payload)
+
+    const all = await todoApi.getTodos()
+    setTodos(all)
+
+    if (selectedDate) {
+      const list = await todoApi.getTodosByDate(selectedDate)
+      setDailyTodos(list)
+    }
+  } catch (err) {
+    console.error(err)
+    setError("Todo 추가 중 오류가 발생했습니다.")
+  } finally {
+    setLoading(false)
   }
+}
 
   const handleDeleteTodo = async (id) => {
     const ok = window.confirm("정말 삭제하시겠습니까?")
@@ -281,12 +313,13 @@ function Home() {
             <button onClick={handleNextMonth}>▶</button>
           </div>
 
-          <Calendar
-            year={year}
-            month={month}
-            selectedDate={selectedDate}
-            onSelectDate={handleSelectDate}
-          />
+        <Calendar
+          year={year}
+          month={month}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          todoDates={todoDates}         // ⬅️ 이 줄 추가
+        />
         </div>
 
         {/* 🔽 다가오는 일정 섹션 */}

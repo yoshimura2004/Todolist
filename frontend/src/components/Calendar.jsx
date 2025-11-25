@@ -1,7 +1,7 @@
 // src/components/Calendar.jsx
 import { useMemo } from "react"
 
-function Calendar({ year, month, selectedDate, onSelectDate }) {
+function Calendar({ year, month, selectedDate, onSelectDate, todoDates = [] }) {
   // month: 0~11 (JS Date 방식)
 
   const weeks = useMemo(() => {
@@ -39,6 +39,15 @@ function Calendar({ year, month, selectedDate, onSelectDate }) {
     )
   }
 
+  // 🔹 이 날짜에 Todo가 있는지 확인
+  const hasTodoOn = (d) => {
+    if (!d) return false
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+      d
+    ).padStart(2, "0")}`
+    return todoDates.includes(dateStr)
+  }
+
   const handleClick = (d) => {
     if (!d) return
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
@@ -50,7 +59,9 @@ function Calendar({ year, month, selectedDate, onSelectDate }) {
   return (
     <div className="calendar">
       <div className="calendar-header">
-        <span>{year}년 {month + 1}월</span>
+        <span>
+          {year}년 {month + 1}월
+        </span>
       </div>
       <div className="calendar-grid">
         {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
@@ -60,19 +71,25 @@ function Calendar({ year, month, selectedDate, onSelectDate }) {
         ))}
 
         {weeks.map((week, wi) =>
-          week.map((d, di) => (
-            <button
-              key={`${wi}-${di}`}
-              className={
-                "calendar-cell calendar-day" +
-                (d && isSameDate(d) ? " selected" : "")
-              }
-              onClick={() => handleClick(d)}
-              disabled={!d}
-            >
-              {d ?? ""}
-            </button>
-          ))
+          week.map((d, di) => {
+            const hasTodo = hasTodoOn(d)
+
+            return (
+              <button
+                key={`${wi}-${di}`}
+                className={
+                  "calendar-cell calendar-day" +
+                  (d && isSameDate(d) ? " selected" : "") +
+                  (hasTodo ? " has-todo" : "")
+                }
+                onClick={() => handleClick(d)}
+                disabled={!d}
+              >
+                {d ?? ""}
+                {hasTodo && <div className="calendar-dot" />}
+              </button>
+            )
+          }),
         )}
       </div>
     </div>
