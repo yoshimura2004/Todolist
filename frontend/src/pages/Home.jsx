@@ -10,17 +10,36 @@ function Home() {
   const [todos, setTodos] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-
+  const [viewMode, setViewMode] = useState("active")
   // 🔽 정렬 방향: desc = 최신 날짜 → 위 / asc = 오래된 날짜 → 위
   const [sortDirection, setSortDirection] = useState("desc")
 
   const toLocalDateStr = (isoString) => {
-  const d = new Date(isoString)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${y}-${m}-${day}`
-}
+    const d = new Date(isoString)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
+  }
+  // 🔹 D-Day 라벨 (Home에서 쓰는 버전)
+  const getDdayLabelFromIso = (isoString) => {
+    if (!isoString) return null
+
+    const today = new Date()
+    const base = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+    const d = new Date(isoString)
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+    const diffDays = Math.round(
+      (target - base) / (1000 * 60 * 60 * 24),
+    )
+
+    if (diffDays === 0) return "오늘"
+    if (diffDays === 1) return "하루 남음"
+    if (diffDays > 1) return `D-${diffDays}`
+    return `D+${Math.abs(diffDays)}`
+  }
   // 🔽 달력 & 모달 관련 상태
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
@@ -28,11 +47,34 @@ function Home() {
   const [selectedDate, setSelectedDate] = useState(null)
   const [dailyTodos, setDailyTodos] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
-const todoDates = todos
-  .filter((t) => t.dueDate)
-  .map((t) => toLocalDateStr(t.dueDate)) // "2025-11-27T09:00:00..." -> "2025-11-27"
+  const todoDates = todos
+    .filter((t) => t.dueDate && t.status !== "DONE")
+    .map((t) => toLocalDateStr(t.dueDate))// "2025-11-27T09:00:00..." -> "2025-11-27"
   // ISO 문자열을 로컬 기준 YYYY-MM-DD 로 바꾸는 함수
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
 
+  const upcomingMap = new Map() // key: 'YYYY-MM-DD', value: earliest todo of that day
+
+  todos.forEach((todo) => {
+    if (!todo.dueDate) return
+    if (todo.status === "DONE") return
+
+    const d = new Date(todo.dueDate)
+    if (d < todayStart) return // 과거 일정은 제외
+
+    const dateKey = toLocalDateStr(todo.dueDate)
+    const prev = upcomingMap.get(dateKey)
+
+    if (!prev || new Date(todo.dueDate) < new Date(prev.dueDate)) {
+      upcomingMap.set(dateKey, todo)
+    }
+  })
+
+  const upcomingList = Array.from(upcomingMap.entries())
+    .sort((a, b) => new Date(a[1].dueDate) - new Date(b[1].dueDate))
+    .slice(0, 5) // 상위 5일 정도만 노출 (원하면 숫자 바꿔도 됨)
+    .map(([dateStr, todo]) => ({ dateStr, todo }))
 
 
   // 초기 전체 목록
@@ -76,9 +118,25 @@ const todoDates = todos
   }
 
   // 🔽 화면에 보여줄 목록 (선택된 날짜가 있으면 dailyTodos, 아니면 전체)
-  const listToShow = selectedDate
-    ? sortTodos(dailyTodos, sortDirection)
-    : sortTodos(todos, sortDirection)
+  // 1) 기준 리스트 (날짜 선택 여부에 따라)
+  const baseList = selectedDate ? dailyTodos : todos
+
+  // 2) 진행 / 완료로 먼저 나누고, 각각 정렬
+  const activeList = sortTodos(
+    baseList.filter((t) => t.status !== "DONE"),
+    sortDirection,
+  )
+
+  const completedList = sortTodos(
+    baseList.filter((t) => t.status === "DONE"),
+    sortDirection,
+  )
+
+  // 3) 화면에 보여줄 리스트 선택
+  const listToShow =
+    viewMode === "completed"
+      ? completedList
+      : activeList
 
   // 🔽 "다가오는 일정" (오늘 ~ 7일 후, 완료되지 않은 것만)
   const upcomingTodos = (() => {
@@ -100,52 +158,52 @@ const todoDates = todos
 
   // src/pages/Home.jsx 중 일부
 
-// ⬇️ 기존: const handleAddTodo = async ({ title }) => {
-const handleAddTodo = async ({ title, ampm, hour, minute }) => {
-  try {
-    setLoading(true)
-    setError(null)
+  // ⬇️ 기존: const handleAddTodo = async ({ title }) => {
+  const handleAddTodo = async ({ title, ampm, hour, minute }) => {
+    try {
+      setLoading(true)
+      setError(null)
 
-    // 🔹 날짜 + 시간 합쳐서 ISO 문자열 만들기
-    let dueDate = selectedDate ?? null
+      // 🔹 날짜 + 시간 합쳐서 ISO 문자열 만들기
+      let dueDate = selectedDate ?? null
 
-    if (selectedDate && ampm && hour != null && minute != null) {
-      let h24 = Number(hour)
+      if (selectedDate && ampm && hour != null && minute != null) {
+        let h24 = Number(hour)
 
-      // 12시간 → 24시간 변환
-      if (ampm === "PM" && h24 < 12) h24 += 12
-      if (ampm === "AM" && h24 === 12) h24 = 0
+        // 12시간 → 24시간 변환
+        if (ampm === "PM" && h24 < 12) h24 += 12
+        if (ampm === "AM" && h24 === 12) h24 = 0
 
-      const hh = String(h24).padStart(2, "0")
-      const mm = String(minute).padStart(2, "0")
+        const hh = String(h24).padStart(2, "0")
+        const mm = String(minute).padStart(2, "0")
 
-      // 예: "2025-11-27T21:30:00"
-      dueDate = `${selectedDate}T${hh}:${mm}:00`
+        // 예: "2025-11-27T21:30:00"
+        dueDate = `${selectedDate}T${hh}:${mm}:00`
+      }
+
+      const payload = {
+        title,
+        description: "프론트에서 추가한 Todo",
+        priority: 2,
+        dueDate, // ⬅️ 날짜+시간 들어간 문자열
+      }
+
+      await todoApi.createTodo(payload)
+
+      const all = await todoApi.getTodos()
+      setTodos(all)
+
+      if (selectedDate) {
+        const list = await todoApi.getTodosByDate(selectedDate)
+        setDailyTodos(list)
+      }
+    } catch (err) {
+      console.error(err)
+      setError("Todo 추가 중 오류가 발생했습니다.")
+    } finally {
+      setLoading(false)
     }
-
-    const payload = {
-      title,
-      description: "프론트에서 추가한 Todo",
-      priority: 2,
-      dueDate, // ⬅️ 날짜+시간 들어간 문자열
-    }
-
-    await todoApi.createTodo(payload)
-
-    const all = await todoApi.getTodos()
-    setTodos(all)
-
-    if (selectedDate) {
-      const list = await todoApi.getTodosByDate(selectedDate)
-      setDailyTodos(list)
-    }
-  } catch (err) {
-    console.error(err)
-    setError("Todo 추가 중 오류가 발생했습니다.")
-  } finally {
-    setLoading(false)
   }
-}
 
   const handleDeleteTodo = async (id) => {
     const ok = window.confirm("정말 삭제하시겠습니까?")
@@ -208,6 +266,7 @@ const handleAddTodo = async ({ title, ampm, hour, minute }) => {
   // 🔽 달력에서 날짜 클릭 시
   const handleSelectDate = async (dateStr) => {
     try {
+      setViewMode("active")
       setSelectedDate(dateStr)
       setModalOpen(true)
       setLoading(true)
@@ -295,6 +354,31 @@ const handleAddTodo = async ({ title, ampm, hour, minute }) => {
     return `D+${Math.abs(diffDays)}`
   }
 
+  const handleShowToday = async () => {
+    try {
+      setModalOpen(false)
+      setLoading(true)
+      setError(null)
+
+      const today = new Date()
+      const y = today.getFullYear()
+      const m = String(today.getMonth() + 1).padStart(2, "0")
+      const d = String(today.getDate()).padStart(2, "0")
+      const todayStr = `${y}-${m}-${d}`
+
+      setSelectedDate(todayStr)
+
+      const list = await todoApi.getTodosByDate(todayStr)
+      setDailyTodos(list)
+    } catch (err) {
+      console.error(err)
+      setError("오늘 Todo 조회 중 오류가 발생했습니다.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
   return (
     <div className="app-root">
       <div className="app-container">
@@ -313,34 +397,58 @@ const handleAddTodo = async ({ title, ampm, hour, minute }) => {
             <button onClick={handleNextMonth}>▶</button>
           </div>
 
-        <Calendar
-          year={year}
-          month={month}
-          selectedDate={selectedDate}
-          onSelectDate={handleSelectDate}
-          todoDates={todoDates}         // ⬅️ 이 줄 추가
-        />
+          <Calendar
+            year={year}
+            month={month}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            todoDates={todoDates}         // ⬅️ 이 줄 추가
+          />
         </div>
 
         {/* 🔽 다가오는 일정 섹션 */}
-        {upcomingTodos.length > 0 && (
-          <section className="upcoming-section">
-            <h2>다가오는 일정</h2>
-            <ul className="upcoming-list">
-              {upcomingTodos.map((todo) => (
-                <li key={todo.id} className="upcoming-item">
-                  <div className="upcoming-main">
-                    <span className="upcoming-title">{todo.title}</span>
-                    <span className="upcoming-date">
-                      {formatUpcomingDate(todo.dueDate)} ·{" "}
-                      {getDdayLabelFromDate(todo.dueDate)}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        {/* 🔽 다가오는 일정 섹션 */}
+        <section className="upcoming-section">
+          <h3 className="upcoming-title">다가오는 일정</h3>
+
+          {upcomingList.length === 0 ? (
+            <p className="upcoming-empty">다가오는 일정이 없습니다.</p>
+          ) : (
+            <div className="upcoming-list">
+              {upcomingList.map(({ dateStr, todo }) => {
+                const d = new Date(todo.dueDate)
+                const dateLabel = d.toLocaleDateString("ko-KR", {
+                  month: "2-digit",
+                  day: "2-digit",
+                  weekday: "short",
+                })
+                const timeLabel = d.toLocaleTimeString("ko-KR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+                const dday = getDdayLabelFromIso(todo.dueDate)
+
+                return (
+                  <button
+                    key={dateStr}
+                    type="button"
+                    className="upcoming-item"
+                    onClick={() => handleSelectDate(dateStr)} // ✅ 클릭 시 해당 날짜로 이동
+                  >
+                    <div className="upcoming-item-title">{todo.title}</div>
+                    <div className="upcoming-item-meta">
+                      <span>{dateLabel}</span>
+                      <span className="upcoming-item-time">{timeLabel}</span>
+                      {dday && (
+                        <span className="upcoming-item-dday">{dday}</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </section>
 
         {/* 🔽 전체 / 선택된 날짜 Todo 목록 섹션 */}
         <section className="summary-section">
@@ -352,17 +460,45 @@ const handleAddTodo = async ({ title, ampm, hour, minute }) => {
             <div className="summary-header-right">
               <button
                 type="button"
+                className="summary-today-btn"
+                onClick={() => {
+                  setViewMode("active")       // ✅ 오늘 Todo 누르면 진행중 뷰로
+                  handleShowToday()
+                }}
+              >
+                오늘 Todo
+              </button>
+
+              <button
+                type="button"
                 className="summary-all-btn"
-                onClick={handleShowAll}
+                onClick={() => {
+                  setViewMode("active")       // ✅ 전체 Todo도 기본은 진행중 뷰
+                  handleShowAll()
+                }}
               >
                 전체 Todo 보기
               </button>
+
               <button
                 type="button"
                 className="sort-toggle-btn"
                 onClick={handleToggleSortDirection}
               >
                 {sortDirection === "desc" ? "최신 날짜순" : "오래된 날짜순"}
+              </button>
+
+              {/* ✅ 완료한 Todo: 다시 누르면 진행중 뷰로 돌아가는 토글 버튼 */}
+              <button
+                type="button"
+                className={
+                  "view-toggle-btn" + (viewMode === "completed" ? " active" : "")
+                }
+                onClick={() =>
+                  setViewMode((prev) => (prev === "completed" ? "active" : "completed"))
+                }
+              >
+                완료한 Todo
               </button>
             </div>
           </div>

@@ -218,18 +218,21 @@ app.patch('/todos/:id/toggle', async (req, res) => {
  */
 app.patch('/todos/:id', async (req, res) => {
   const id = Number(req.params.id)
-
   if (Number.isNaN(id)) {
     return res.status(400).json({ error: 'id는 숫자여야 합니다.' })
   }
 
-  // body에서 수정할 값 꺼내기
-  const { title, description, priority } = req.body ?? {}
+  const { title, description, priority, dueDate } = req.body ?? {}
 
-  // 최소한 title 이라도 있어야 한다고 가정 (원하면 조건 완화 가능)
-  if (!title && !description && priority === undefined) {
+  if (
+    !title &&
+    !description &&
+    priority === undefined &&
+    dueDate === undefined
+  ) {
     return res.status(400).json({
-      error: '수정할 값이 없습니다. title, description 또는 priority 중 하나는 있어야 합니다.',
+      error:
+        '수정할 값이 없습니다. title, description, priority, dueDate 중 하나는 있어야 합니다.',
     })
   }
 
@@ -240,6 +243,9 @@ app.patch('/todos/:id', async (req, res) => {
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
         ...(priority !== undefined && { priority }),
+        ...(dueDate !== undefined && {
+          dueDate: dueDate ? new Date(dueDate) : null,
+        }),
       },
     })
 
@@ -252,6 +258,7 @@ app.patch('/todos/:id', async (req, res) => {
     res.status(500).json({ error: '수정 중 오류 발생' })
   }
 })
+
 
 // ✅ 날짜별 Todo 조회: GET /todos/by-date?date=2025-11-20
 app.get('/todos/by-date', async (req, res) => {

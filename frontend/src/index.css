@@ -384,6 +384,20 @@ body {
   font-size: 12px;
   color: #b0b0b0;
 }
+
+.todo-time-inline {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 카드 안에서 쓰는 작은 셀렉트 */
+.time-select-sm {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
 /* 요약 헤더 */
 .summary-header {
   display: flex;
@@ -407,6 +421,21 @@ body {
   font-size: 12px;
   cursor: pointer;
 }
+
+.summary-today-btn {
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.summary-today-btn:active {
+  transform: translateY(1px);
+}
+
 
 .summary-all-btn:active {
   transform: translateY(1px);
@@ -440,10 +469,10 @@ body {
 
 /* 다가오는 일정 섹션 */
 .upcoming-section {
-  margin-top: 16px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: #110606;
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #110b0b;
   color: #ffffff;
 }
 
@@ -452,24 +481,54 @@ body {
   margin: 0 0 8px;
 }
 
+
 .upcoming-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .upcoming-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  width: 100%;
+  text-align: left;
   border-radius: 14px;
-  padding: 10px 14px;
-  border: 1px solid #ececec;
+  padding: 10px 12px;
+  border: 1px solid #3a2f2f;
+  background: #181010;
+  color: #ffffff;
+  cursor: pointer;
 }
 
+.upcoming-item:hover {
+  border-color: #ffffff33;
+}
+
+.upcoming-item:active {
+  transform: translateY(1px);
+}
+.upcoming-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.upcoming-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #c0c0c0;
+}
+.upcoming-item-time {
+  font-size: 12px;
+}
+
+.upcoming-item-dday {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ff5b5b;
+  color: #ffffff;
+}
 .upcoming-main {
   display: flex;
   flex-direction: column;
@@ -477,7 +536,13 @@ body {
 
 .upcoming-title {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.upcoming-empty {
+  font-size: 12px;
+  color: #c0c0c0;
 }
 
 .upcoming-date {
