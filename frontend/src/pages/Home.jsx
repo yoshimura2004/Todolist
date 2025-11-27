@@ -11,6 +11,8 @@ function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [viewMode, setViewMode] = useState("active")
+  const [activeButton, setActiveButton] = useState(null)
+
   // 🔽 정렬 방향: desc = 최신 날짜 → 위 / asc = 오래된 날짜 → 위
   const [sortDirection, setSortDirection] = useState("desc")
 
@@ -356,16 +358,25 @@ function Home() {
 
   const handleShowToday = async () => {
     try {
+      setViewMode("active")    // 진행중 뷰로
       setModalOpen(false)
       setLoading(true)
       setError(null)
 
       const today = new Date()
       const y = today.getFullYear()
-      const m = String(today.getMonth() + 1).padStart(2, "0")
-      const d = String(today.getDate()).padStart(2, "0")
+      const mIndex = today.getMonth() // 0~11
+      const dNum = today.getDate()
+
+      const m = String(mIndex + 1).padStart(2, "0")
+      const d = String(dNum).padStart(2, "0")
       const todayStr = `${y}-${m}-${d}`
 
+      // ✅ 달력도 오늘 연/월로 이동
+      setYear(y)
+      setMonth(mIndex)
+
+      // ✅ 선택된 날짜도 오늘로
       setSelectedDate(todayStr)
 
       const list = await todoApi.getTodosByDate(todayStr)
@@ -454,51 +465,64 @@ function Home() {
         <section className="summary-section">
           <div className="summary-header">
             <h2>
-              {selectedDate ? `${selectedDate} Todo 목록` : "전체 Todo 목록"}
+              {selectedDate
+                ? viewMode === "completed"
+                  ? `${selectedDate} 완료한 Todo`
+                  : `${selectedDate} Todo 목록`
+                : viewMode === "completed"
+                  ? "완료한 Todo 목록"
+                  : "전체 Todo 목록"}
             </h2>
 
             <div className="summary-header-right">
-              <button
-                type="button"
-                className="summary-today-btn"
-                onClick={() => {
-                  setViewMode("active")       // ✅ 오늘 Todo 누르면 진행중 뷰로
-                  handleShowToday()
-                }}
-              >
-                오늘 Todo
-              </button>
 
               <button
                 type="button"
-                className="summary-all-btn"
+                className={
+                  "summary-all-btn" + (activeButton === "all" ? " active" : "")
+                }
                 onClick={() => {
-                  setViewMode("active")       // ✅ 전체 Todo도 기본은 진행중 뷰
+                  setActiveButton("all")
+                  setViewMode("active")
                   handleShowAll()
                 }}
               >
                 전체 Todo 보기
               </button>
-
               <button
                 type="button"
-                className="sort-toggle-btn"
-                onClick={handleToggleSortDirection}
+                className={
+                  "summary-today-btn" + (activeButton === "today" ? " active" : "")
+                }
+                onClick={() => {
+                  setActiveButton("today")
+                  setViewMode("active")
+                  handleShowToday()
+                }}
               >
-                {sortDirection === "desc" ? "최신 날짜순" : "오래된 날짜순"}
+                오늘 Todo
               </button>
-
               {/* ✅ 완료한 Todo: 다시 누르면 진행중 뷰로 돌아가는 토글 버튼 */}
               <button
                 type="button"
                 className={
                   "view-toggle-btn" + (viewMode === "completed" ? " active" : "")
                 }
-                onClick={() =>
-                  setViewMode((prev) => (prev === "completed" ? "active" : "completed"))
-                }
+                onClick={() => {
+                  setActiveButton("completed")
+                  setViewMode((prev) =>
+                    prev === "completed" ? "active" : "completed"
+                  )
+                }}
               >
                 완료한 Todo
+              </button>
+              <button
+                type="button"
+                className="sort-toggle-btn"
+                onClick={handleToggleSortDirection}
+              >
+                {sortDirection === "desc" ? "최신 날짜순" : "오래된 날짜순"}
               </button>
             </div>
           </div>

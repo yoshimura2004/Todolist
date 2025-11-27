@@ -58,35 +58,42 @@ function Calendar({ year, month, selectedDate, onSelectDate, todoDates = [] }) {
 
   return (
     <div className="calendar">
-      <div className="calendar-header">
-        <span>
-          {year}년 {month + 1}월
-        </span>
-      </div>
-      <div className="calendar-grid">
+      {/* ❌ 헤더 제거됨 → Home.jsx에서만 월/년 표시 */}
+
+      {/* 요일 헤더 */}
+      <div className="calendar-weekdays">
         {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-          <div key={d} className="calendar-cell calendar-weekday">
+          <div key={d} className="calendar-weekday">
             {d}
           </div>
         ))}
+      </div>
 
+      {/* 날짜 그리드 */}
+      <div className="calendar-grid">
         {weeks.map((week, wi) =>
           week.map((d, di) => {
             const hasTodo = hasTodoOn(d)
+            const selected = d && isSameDate(d)
+
+            const classNames = [
+              "calendar-day",
+              d ? "" : "empty",
+              selected ? "selected" : "",
+              hasTodo ? "has-todo" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")
 
             return (
               <button
                 key={`${wi}-${di}`}
-                className={
-                  "calendar-cell calendar-day" +
-                  (d && isSameDate(d) ? " selected" : "") +
-                  (hasTodo ? " has-todo" : "")
-                }
+                className={classNames}
                 onClick={() => handleClick(d)}
                 disabled={!d}
               >
                 {d ?? ""}
-                {hasTodo && <div className="calendar-dot" />}
+                {hasTodo && <span className="calendar-dot" />}
               </button>
             )
           }),

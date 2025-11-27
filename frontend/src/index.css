@@ -218,6 +218,7 @@ body {
 }
 
 /* === 달력 영역 === */
+
 .calendar-wrapper {
   margin-top: 12px;
   margin-bottom: 20px;
@@ -234,6 +235,12 @@ body {
   align-items: center;
   margin-bottom: 8px;
   font-size: 14px;
+}
+.calendar-nav span {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #222222;
 }
 
 .calendar-nav button {
@@ -263,7 +270,7 @@ body {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 6px;
 }
 
 .calendar-cell {
@@ -271,30 +278,49 @@ body {
   text-align: center;
   font-size: 12px;
 }
-
 .calendar-weekday {
-  font-size: 11px;
-  color: #7a7a7a;
+  font-size: 13px;
+  font-weight: 500;
+  color: #030000;
+  letter-spacing: 0.05em;
+  margin-top: 15%;
+}
+
+/* 요일 줄 컨테이너 */
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);  /* ← 요일을 가로 7칸으로 배치 */
+  text-align: center;
+  color: #777;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
 }
 
 /* 날짜 버튼 */
 .calendar-day {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1/1;
   border-radius: 10px;
-  border: none;
+  background: #ffffff;
+  border: 1px solid #eee;
   cursor: pointer;
-  background: #f8f8f8;
-  min-height: 32px;
-   position: relative;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+    font-size: 13px;
+  font-weight: 400;
+  color: #333333;
 }
+/* Todo 점 */
 .calendar-dot {
-  width: 6px;
-  height: 6px;
-  background: #ff4b4b;
-  border-radius: 50%;
   position: absolute;
-  bottom: 3px;
+  bottom: 6px;
   left: 50%;
   transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: #ff4d4d;
+  border-radius: 999px;
 }
 
 .calendar-day.has-todo {
@@ -302,11 +328,17 @@ body {
 }
 
 .calendar-day.selected {
-  background: #000000;
-  color: #ffffff;
+  background: #111111;
   font-weight: 600;
+  color: #ffffff;
+  border-color: #111111;
 }
-
+.calendar-day:hover:not(.empty) {
+  border-color: #111;
+}
+.calendar-day.has-todo {
+  border-color: #ffd4d4;
+}
 /* === 날짜 요약 / 전체 Todo 섹션 === */
 .summary-section {
   margin-top: 24px;
@@ -412,48 +444,32 @@ body {
 }
 
 /* 전체 Todo 보기 버튼 */
-.summary-all-btn {
-  border: 1px solid #111;
-  background: #fff;
-  color: #111;
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
+.summary-all-btn,
+.sort-toggle-btn,
+.view-toggle-btn,
 .summary-today-btn {
-  border: 1px solid #111;
-  background: #111;
-  color: #fff;
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.summary-today-btn:active {
-  transform: translateY(1px);
-}
-
-
-.summary-all-btn:active {
-  transform: translateY(1px);
-}
-
-/* 정렬 방향 토글 버튼 */
-.sort-toggle-btn {
   border: 1px solid #e4e4e4;
-  background: #f7f7f7;
-  color: #111;
+  background: #ffffff;
+  color: #111111;
   border-radius: 999px;
   padding: 6px 14px;
   font-size: 12px;
   cursor: pointer;
 }
 
-.sort-toggle-btn:active {
-  transform: translateY(1px);
+.summary-all-btn:hover,
+.sort-toggle-btn:hover,
+.view-toggle-btn:hover,
+.summary-today-btn:hover {
+  background: #f5f5f5;
+}
+
+.summary-all-btn.active,
+.summary-today-btn.active,
+.view-toggle-btn.active {
+  border-color: #111111;
+  background: #111111;
+  color: #ffffff;
 }
 
 /* D-Day 라벨 */
@@ -553,6 +569,7 @@ body {
 .todo-card.today {
   border: 2px solid #4da3ff;
 }
+
 
 
 /* === 반응형 (태블릿 이상에서 여백/폭 넓히기) === */
