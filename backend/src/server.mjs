@@ -1,9 +1,18 @@
 import express from 'express'
 import cors from 'cors'
 import { PrismaClient } from '@prisma/client'   // ✅ 추가
+import cron from "node-cron"
+import webpush from "web-push"
+import { checkAndSendTodoNotifications } from "./notificationScheduler.mjs"
 
 const app = express()
 const prisma = new PrismaClient()              // ✅ Prisma 인스턴스
+
+webpush.setVapidDetails(
+  process.env.VAPID_SUBJECT,
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+)
 
 app.use(cors({
   origin: 'http://localhost:5173',   // Vite 기본 포트
@@ -128,6 +137,83 @@ app.post('/todos', async (req, res) => {
   }
 })
 
+// 🔔 푸시 구독 저장
+app.post("/api/push/subscribe", async (req, res) => {
+  try {
+    const { subscription, userId } = req.body
+
+    console.log("📝 새 푸시 구독 요청:", subscription?.endpoint)
+
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: "subscription 정보가 없습니다." })
+    }
+
+    const uid = Number(userId) || 1
+    const { endpoint, keys } = subscription
+
+    await prisma.pushSubscription.upsert({
+      where: { endpoint },
+      create: {
+        userId: uid,
+        endpoint,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+      },
+      update: {
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+      },
+    })
+
+    console.log("✅ 구독 저장 완료:", endpoint)
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error("push subscribe 오류:", err)
+    res.status(500).json({ error: "구독 저장 중 오류" })
+  }
+})
+// 🔔 테스트용 푸시 알림 API
+app.post("/api/push/test", async (req, res) => {
+  try {
+    const uid = 1  // 일단 1번 유저 기준
+
+    const subs = await prisma.pushSubscription.findMany({
+      where: { userId: uid },
+    })
+
+    console.log(`🧪 테스트 푸시 - 구독 수: ${subs.length}`)
+
+    if (subs.length === 0) {
+      return res.status(400).json({ error: "저장된 구독이 없습니다." })
+    }
+
+    const payload = JSON.stringify({
+      title: "TodoTodo",
+      subtitle: "테스트 알람",
+      body: "이 알림이 보이면 Push 설정 성공입니다! 🎉",
+      data: {},
+    })
+
+    for (const sub of subs) {
+      const pushSub = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: sub.p256dh,
+          auth: sub.auth,
+        },
+      }
+
+      await webpush.sendNotification(pushSub, payload)
+      console.log("✅ 테스트 푸시 발송 완료")
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error("❌ 테스트 푸시 실패:", err.statusCode || err)
+    res.status(500).json({ error: "테스트 푸시 실패" })
+  }
+})
 
 
 
@@ -298,4 +384,12 @@ const PORT = 4000
 
 app.listen(PORT, () => {
   console.log(`📡 서버 실행됨: http://localhost:${PORT}`)
+})
+
+// 🔽 테스트용: 1분마다 알림 체크
+cron.schedule("*/1 * * * *", () => {
+  console.log("⏰ [CRON] Todo 알림 체크 시작")
+  checkAndSendTodoNotifications().catch((err) => {
+    console.error("알림 체크 중 오류:", err)
+  })
 })

@@ -440,7 +440,10 @@ body {
 
 .summary-header-right {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;     /* 줄바꿈 허용 */
+  gap: 8px;            /* 버튼 사이 간격 */
+  justify-content: flex-start;
+  align-items: center;
 }
 
 /* 전체 Todo 보기 버튼 */
@@ -600,5 +603,26 @@ body {
 
   .summary-section h2 {
     font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-header {
+    flex-direction: column;      /* 제목 위, 버튼 아래로 세로 배치 */
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .summary-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .summary-header-right button {
+    flex: 1 1 48%;               /* 한 줄에 버튼 2개씩 */
+    font-size: 12px;
+    padding: 6px 8px;
+    text-align: center;
+    white-space: nowrap;         /* 줄 안에서 단어가 꺾이지 않게 */
   }
 }

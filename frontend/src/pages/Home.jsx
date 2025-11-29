@@ -5,6 +5,7 @@ import TodoForm from "../components/TodoForm"
 import TodoList from "../components/TodoList"
 import Calendar from "../components/Calendar"
 import Modal from "../components/Modal"
+import { registerPush, sendTestPush } from "../registerPush"
 
 function Home() {
   const [todos, setTodos] = useState([])
@@ -14,7 +15,7 @@ function Home() {
   const [activeButton, setActiveButton] = useState(null)
 
   // 🔽 정렬 방향: desc = 최신 날짜 → 위 / asc = 오래된 날짜 → 위
-  const [sortDirection, setSortDirection] = useState("desc")
+  const [sortDirection, setSortDirection] = useState("asc")
 
   const toLocalDateStr = (isoString) => {
     const d = new Date(isoString)
@@ -185,7 +186,7 @@ function Home() {
 
       const payload = {
         title,
-        description: "프론트에서 추가한 Todo",
+        description: "TodoTodo",
         priority: 2,
         dueDate, // ⬅️ 날짜+시간 들어간 문자열
       }
@@ -265,10 +266,18 @@ function Home() {
     }
   }
 
-  // 🔽 달력에서 날짜 클릭 시
+  // 🔽 달력에서 날짜 클릭 / 다가오는 일정 클릭 시
   const handleSelectDate = async (dateStr) => {
     try {
       setViewMode("active")
+
+      // ⬇️ 선택한 날짜 기준으로 달력의 연/월도 같이 이동
+      const d = new Date(dateStr)
+      if (!isNaN(d)) {
+        setYear(d.getFullYear())
+        setMonth(d.getMonth())   // 0~11
+      }
+
       setSelectedDate(dateStr)
       setModalOpen(true)
       setLoading(true)
@@ -478,6 +487,22 @@ function Home() {
 
               <button
                 type="button"
+                className="push-enable-btn"
+                onClick={registerPush}
+              >
+                알림 허용
+              </button>
+              
+              <button
+                type="button"
+                className="push-test-btn"
+                onClick={sendTestPush}
+              >
+                테스트 알림
+              </button>
+
+              <button
+                type="button"
                 className={
                   "summary-all-btn" + (activeButton === "all" ? " active" : "")
                 }
@@ -522,7 +547,7 @@ function Home() {
                 className="sort-toggle-btn"
                 onClick={handleToggleSortDirection}
               >
-                {sortDirection === "desc" ? "최신 날짜순" : "오래된 날짜순"}
+                {sortDirection === "asc" ? "가까운 일정 순서" : "먼 일정 순서"}
               </button>
             </div>
           </div>
