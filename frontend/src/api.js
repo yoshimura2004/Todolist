@@ -2,8 +2,9 @@
 import axios from "axios"
 
 const api = axios.create({
-  baseURL: "/api", // 절대 http://localhost:4000 쓰지 말고 이렇게!
-  withCredentials: true,
+  // ✅ 배포 환경에서는 Render API 주소 사용
+  baseURL: "https://todoassistant-api.onrender.com/api",
+  withCredentials: true,   // ✅ 쿠키(JWT) 자동 포함
 })
 
 
