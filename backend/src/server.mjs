@@ -4,103 +4,127 @@ import { PrismaClient } from '@prisma/client'   // ✅ 추가
 import cron from "node-cron"
 import webpush from "web-push"
 import { checkAndSendTodoNotifications } from "./notificationScheduler.mjs"
+import jwt from "jsonwebtoken"
+import { OAuth2Client } from "google-auth-library"
+import dotenv from "dotenv";
+import cookieParser from "cookie-parser"
+
+dotenv.config()
 
 const app = express()
 const prisma = new PrismaClient()              // ✅ Prisma 인스턴스
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+const JWT_SECRET = process.env.JWT_SECRET || "dev-secret"
 
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT,
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 )
+// 🔐 로그인 확인 미들웨어
+function authMiddleware(req, res, next) {
+  const token = req.cookies?.todotodo_token          // 🔥 쿠키에서 읽기
 
-app.use(cors({
-  origin: 'http://localhost:5173',   // Vite 기본 포트
-}))
-// JSON 파싱
-app.use(express.json())
-
-// 기본 라우트
-app.get('/', (req, res) => {
-  res.send('서버 잘 켜졌습니다!')
-})
-
-/**
- * 2) /time
- * - 현재 시간을 JSON 형태로 반환
- */
-app.get('/time', (req, res) => {
-  const now = new Date()
-  res.json({
-    message: '현재 서버 시간입니다.',
-    now: now.toISOString(),   // 2025-11-15T...
-  })
-})
-
-/**
- * 3) /sum
- * - 예: /sum?a=3&b=5
- * - a와 b를 더한 값을 JSON으로 반환
- */
-app.get('/sum', (req, res) => {
-  const a = Number(req.query.a)  // 쿼리스트링에서 a 꺼내기
-  const b = Number(req.query.b)  // 쿼리스트링에서 b 꺼내기
-
-  // 숫자가 아니면 에러 메시지
-  if (Number.isNaN(a) || Number.isNaN(b)) {
-    return res.status(400).json({
-      error: 'a와 b 쿼리스트링에 숫자를 넣어주세요. 예: /sum?a=3&b=5',
-    })
+  if (!token) {
+    return res.status(401).json({ message: "로그인이 필요합니다." })
   }
 
-  const result = a + b
-
-  res.json({
-    a,
-    b,
-    result,
-  })
-})
-
-/**
- * 4) POST /echo
- * - 클라이언트가 보낸 데이터를 그대로 응답으로 돌려준다.
- * - POST 요청의 핵심: req.body 로 데이터 꺼내기
- */
-app.post('/echo', (req, res) => {
-  const data = req.body   // POST로 들어온 JSON 데이터
-
-  res.json({
-    message: '서버가 받은 데이터입니다.',
-    received: data,
-  })
-})
-
-/**
- * 🧪 1회용 API: 기본 유저 생성용
- * - POST /init-user 를 한 번만 호출해서 테스트 유저를 만든다.
- */
-app.post('/init-user', async (req, res) => {
   try {
+    const decoded = jwt.verify(token, JWT_SECRET)
+    req.user = decoded
+    next()
+  } catch (err) {
+    console.error("JWT verify error:", err)
+    return res.status(401).json({ message: "토큰이 유효하지 않습니다." })
+  }
+}
+app.use(cors({
+  origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+  credentials: true,                    // 🔥 쿠키 허용
+}))
+
+app.use(cookieParser())                 // 🔥 쿠키 파싱
+app.use(express.json())
+
+app.post("/api/auth/google", async (req, res) => {
+  try {
+    const { credential } = req.body
+    if (!credential) {
+      return res.status(400).json({ message: "credential 누락" })
+    }
+
+    // 1) Google ID 토큰 검증
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    })
+    const payload = ticket.getPayload()
+
+    const googleEmail = payload.email
+    const googleName = payload.name || "사용자"
+
+    if (!googleEmail) {
+      return res.status(400).json({ message: "이메일 정보가 없습니다." })
+    }
+
+    // 2) User 테이블에서 email 기준으로 찾거나 없으면 생성
     const user = await prisma.user.upsert({
-      where: { email: 'test@example.com' },   // 이미 있으면 업데이트 안 하고 그대로
-      update: {},
+      where: { email: googleEmail },
+      update: {
+        name: googleName,
+      },
       create: {
-        email: 'test@example.com',
-        passwordHash: 'dummy-hash',          // 나중에 진짜 해싱으로 바꾸면 됨
-        name: '테스트유저',
-        role: 'USER',
+        email: googleEmail,
+        name: googleName,
+        // 비밀번호 로그인은 안 쓸 거라 의미 없는 값 넣어두기
+        passwordHash: "GOOGLE_USER",
+        role: "USER",
       },
     })
 
-    res.json({
-      message: '기본 유저가 준비되었습니다.',
-      user,
-    })
+    // 3) 우리 서비스용 JWT 발급 (User.id 사용!)
+const token = jwt.sign(
+  {
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+  },
+  JWT_SECRET,
+  { expiresIn: "7d" },
+)
+
+// 🔥 httpOnly 쿠키로 토큰 전달
+const isProd = process.env.NODE_ENV === "production"
+
+res
+  .cookie("todotodo_token", token, {
+    httpOnly: true,                          // JS에서 접근 불가
+    secure: isProd,                          // 배포(HTTPS)에서는 true
+    sameSite: isProd ? "none" : "lax",       // 프론트/백 도메인 분리 대비
+    maxAge: 7 * 24 * 60 * 60 * 1000,         // 7일
+  })
+  .json({
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    },
+  })
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: '기본 유저 생성 중 오류' })
+    console.error("Google auth error:", err)
+    res.status(401).json({ message: "Google 로그인 실패" })
   }
+})
+app.post("/api/auth/logout", (req, res) => {
+  const isProd = process.env.NODE_ENV === "production"
+
+  res
+    .clearCookie("todotodo_token", {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+    })
+    .json({ ok: true })
 })
 
 /**
@@ -108,11 +132,11 @@ app.post('/init-user', async (req, res) => {
  * - body: { title, description?, priority? }
  * - 로그인/인증은 아직 없으니, 일단 userId = 1 고정으로 사용
  */
-app.post('/todos', async (req, res) => {
+app.post("/api/todos", authMiddleware, async (req, res) => {
   const { title, description, priority, dueDate } = req.body ?? {}
 
   if (!title) {
-    return res.status(400).json({ error: 'title은 필수입니다.' })
+    return res.status(400).json({ error: "title은 필수입니다." })
   }
 
   try {
@@ -121,19 +145,15 @@ app.post('/todos', async (req, res) => {
         title,
         description: description || null,
         priority: priority ?? 2,
-        userId: 1,
-        // ⬇️ "2025-11-27T21:30:00" 같은 문자열을 그대로 Date로 변환
+        userId: req.user.userId,               // 🔥 여기!
         dueDate: dueDate ? new Date(dueDate) : null,
       },
     })
 
-    res.status(201).json({
-      message: 'DB에 Todo가 저장되었습니다.',
-      todo: newTodo,
-    })
+    res.status(201).json(newTodo)
   } catch (error) {
     console.error(error)
-    res.status(500).json({ error: 'DB 저장 중 오류 발생' })
+    res.status(500).json({ error: "DB 저장 중 오류 발생" })
   }
 })
 
@@ -173,47 +193,61 @@ app.post("/api/push/subscribe", async (req, res) => {
     res.status(500).json({ error: "구독 저장 중 오류" })
   }
 })
+
 // 🔔 테스트용 푸시 알림 API
-app.post("/api/push/test", async (req, res) => {
-  try {
-    const uid = 1  // 일단 1번 유저 기준
+// app.post("/api/push/test", async (req, res) => {
+//   try {
+//     const uid = 1
 
-    const subs = await prisma.pushSubscription.findMany({
-      where: { userId: uid },
-    })
+//     const subs = await prisma.pushSubscription.findMany({
+//       where: { userId: uid },
+//     })
 
-    console.log(`🧪 테스트 푸시 - 구독 수: ${subs.length}`)
+//     console.log(`🧪 테스트 푸시 - 구독 수: ${subs.length}`)
 
-    if (subs.length === 0) {
-      return res.status(400).json({ error: "저장된 구독이 없습니다." })
-    }
+//     if (subs.length === 0) {
+//       return res.status(400).json({ error: "저장된 구독이 없습니다." })
+//     }
 
-    const payload = JSON.stringify({
-      title: "TodoTodo",
-      subtitle: "테스트 알람",
-      body: "이 알림이 보이면 Push 설정 성공입니다! 🎉",
-      data: {},
-    })
+//     const payload = JSON.stringify({
+//       title: "TodoTodo",
+//       subtitle: "테스트 알람",
+//       body: "이 알림이 보이면 Push 설정 성공입니다! 🎉",
+//       data: {},
+//     })
 
-    for (const sub of subs) {
-      const pushSub = {
-        endpoint: sub.endpoint,
-        keys: {
-          p256dh: sub.p256dh,
-          auth: sub.auth,
-        },
-      }
+//     for (const sub of subs) {
+//       const pushSub = {
+//         endpoint: sub.endpoint,
+//         keys: {
+//           p256dh: sub.p256dh,
+//           auth: sub.auth,
+//         },
+//       }
 
-      await webpush.sendNotification(pushSub, payload)
-      console.log("✅ 테스트 푸시 발송 완료")
-    }
+//       try {
+//         await webpush.sendNotification(pushSub, payload)
+//         console.log("✅ 테스트 푸시 발송 완료")
+//       } catch (err) {
+//         const code = err?.statusCode || err?.status || "unknown"
+//         console.error("❌ 테스트 푸시 실패:", code)
 
-    res.json({ ok: true })
-  } catch (err) {
-    console.error("❌ 테스트 푸시 실패:", err.statusCode || err)
-    res.status(500).json({ error: "테스트 푸시 실패" })
-  }
-})
+//         // 🔥 410 / 404 => 이 구독은 더 이상 유효하지 않으니 DB에서 삭제
+//         if (code === 410 || code === 404) {
+//           console.log("🗑️ 만료된 구독 삭제:", sub.endpoint)
+//           await prisma.pushSubscription.delete({
+//             where: { endpoint: sub.endpoint },
+//           })
+//         }
+//       }
+//     }
+
+//     res.json({ ok: true })
+//   } catch (err) {
+//     console.error("❌ 테스트 푸시 실패 (전체):", err)
+//     res.status(500).json({ error: "테스트 푸시 실패" })
+//   }
+// })
 
 
 
@@ -221,79 +255,76 @@ app.post("/api/push/test", async (req, res) => {
  * ✅ DB 버전: GET /todos
  * - (임시로) userId = 1 인 Todo만 조회
  */
-app.get('/todos', async (req, res) => {
+app.get("/api/todos", authMiddleware, async (req, res) => {
   try {
     const todos = await prisma.todo.findMany({
-      where: { userId: 1 },
-      orderBy: { createdAt: 'desc' },
+      where: { userId: req.user.userId },      // 🔥 로그인한 유저만
+      orderBy: { createdAt: "desc" },
     })
 
     res.json(todos)
   } catch (error) {
     console.error(error)
-    res.status(500).json({ error: 'DB 조회 중 오류 발생' })
+    res.status(500).json({ error: "DB 조회 중 오류 발생" })
   }
 })
 
-/**
- * ✅ DB 버전: DELETE /todos/:id
- */
-app.delete('/todos/:id', async (req, res) => {
+// Todo 삭제: DELETE /api/todos/:id
+app.delete("/api/todos/:id", authMiddleware, async (req, res) => {
   const id = Number(req.params.id)
 
   if (Number.isNaN(id)) {
-    return res.status(400).json({ error: 'id는 숫자여야 합니다.' })
+    return res.status(400).json({ error: "id는 숫자여야 합니다." })
   }
 
   try {
-    await prisma.todo.delete({
-      where: { id },
+    // 내 Todo인지 확인
+    const existing = await prisma.todo.findFirst({
+      where: { id, userId: req.user.userId },
     })
+    if (!existing) {
+      return res.status(404).json({ error: "해당 Todo를 찾을 수 없습니다." })
+    }
 
-    res.json({ message: '삭제되었습니다.', id })
+    await prisma.todo.delete({ where: { id } })
+
+    res.json({ message: "삭제되었습니다.", id })
   } catch (error) {
     console.error(error)
-    res.status(500).json({ error: '삭제 중 오류 발생' })
+    res.status(500).json({ error: "삭제 중 오류 발생" })
   }
 })
-/**
- * ✅ 상태 토글: PATCH /todos/:id/toggle
- * - 현재 status 가 OPEN 이면 DONE 으로
- * - DONE 이면 다시 OPEN 으로 되돌리기
- */
-app.patch('/todos/:id/toggle', async (req, res) => {
+
+// 상태 토글: PATCH /api/todos/:id/toggle
+
+app.patch("/api/todos/:id/toggle", authMiddleware, async (req, res) => {
   const id = Number(req.params.id)
 
   if (Number.isNaN(id)) {
-    return res.status(400).json({ error: 'id는 숫자여야 합니다.' })
+    return res.status(400).json({ error: "id는 숫자여야 합니다." })
   }
 
   try {
-    // 1) 현재 Todo 조회
-    const todo = await prisma.todo.findUnique({
-      where: { id },
+    // 내 Todo인지 확인
+    const todo = await prisma.todo.findFirst({
+      where: { id, userId: req.user.userId },
     })
 
     if (!todo) {
-      return res.status(404).json({ error: '해당 Todo를 찾을 수 없습니다.' })
+      return res.status(404).json({ error: "해당 Todo를 찾을 수 없습니다." })
     }
 
-    // 2) 새 status 계산
-    const newStatus = todo.status === 'DONE' ? 'OPEN' : 'DONE'
+    const newStatus = todo.status === "DONE" ? "OPEN" : "DONE"
 
-    // 3) DB 업데이트
     const updated = await prisma.todo.update({
       where: { id },
       data: { status: newStatus },
     })
 
-    res.json({
-      message: '상태가 변경되었습니다.',
-      todo: updated,
-    })
+    res.json(updated)
   } catch (error) {
     console.error(error)
-    res.status(500).json({ error: '상태 변경 중 오류 발생' })
+    res.status(500).json({ error: "상태 변경 중 오류 발생" })
   }
 })
 
@@ -302,10 +333,11 @@ app.patch('/todos/:id/toggle', async (req, res) => {
  * - body에 들어온 값만 골라서 수정
  *   예) { title: "새 제목" }
  */
-app.patch('/todos/:id', async (req, res) => {
+// Todo 수정: PATCH /api/todos/:id
+app.put("/api/todos/:id", authMiddleware, async (req, res) => {
   const id = Number(req.params.id)
   if (Number.isNaN(id)) {
-    return res.status(400).json({ error: 'id는 숫자여야 합니다.' })
+    return res.status(400).json({ error: "id는 숫자여야 합니다." })
   }
 
   const { title, description, priority, dueDate } = req.body ?? {}
@@ -318,11 +350,18 @@ app.patch('/todos/:id', async (req, res) => {
   ) {
     return res.status(400).json({
       error:
-        '수정할 값이 없습니다. title, description, priority, dueDate 중 하나는 있어야 합니다.',
+        "수정할 값이 없습니다. title, description, priority, dueDate 중 하나는 있어야 합니다.",
     })
   }
 
   try {
+    const existing = await prisma.todo.findFirst({
+      where: { id, userId: req.user.userId },
+    })
+    if (!existing) {
+      return res.status(404).json({ error: "해당 Todo를 찾을 수 없습니다." })
+    }
+
     const updated = await prisma.todo.update({
       where: { id },
       data: {
@@ -335,26 +374,23 @@ app.patch('/todos/:id', async (req, res) => {
       },
     })
 
-    res.json({
-      message: 'Todo가 수정되었습니다.',
-      todo: updated,
-    })
+    res.json(updated)
   } catch (error) {
     console.error(error)
-    res.status(500).json({ error: '수정 중 오류 발생' })
+    res.status(500).json({ error: "수정 중 오류 발생" })
   }
 })
 
 
-// ✅ 날짜별 Todo 조회: GET /todos/by-date?date=2025-11-20
-app.get('/todos/by-date', async (req, res) => {
+// 날짜별 Todo: GET /api/todos/by-date?date=YYYY-MM-DD
+app.get("/api/todos/by-date", authMiddleware, async (req, res) => {
   const { date } = req.query // 'YYYY-MM-DD'
   if (!date) {
-    return res.status(400).json({ error: 'date 쿼리스트링이 필요합니다.' })
+    return res.status(400).json({ error: "date 쿼리스트링이 필요합니다." })
   }
 
   try {
-    const [year, month, day] = date.split('-').map(Number)
+    const [year, month, day] = date.split("-").map(Number)
 
     // 로컬 기준: 해당 날짜 00:00 ~ 다음날 00:00 전까지
     const start = new Date(year, month - 1, day, 0, 0, 0)
@@ -362,34 +398,35 @@ app.get('/todos/by-date', async (req, res) => {
 
     const todos = await prisma.todo.findMany({
       where: {
-        userId: 1,
+        userId: req.user.userId,               // 🔥 로그인 유저
         dueDate: {
           gte: start,
           lt: end,
         },
       },
-      orderBy: { dueDate: 'asc' },
+      orderBy: { dueDate: "asc" },
     })
 
     res.json(todos)
   } catch (err) {
     console.error(err)
-    res.status(500).json({ error: '날짜별 Todo 조회 중 오류' })
+    res.status(500).json({ error: "날짜별 Todo 조회 중 오류" })
   }
 })
 
 
 // 🔚 서버 실행 부분 (파일 맨 아래에 위치)
-const PORT = 4000
+const PORT = process.env.PORT || 4000   // 🔥 배포환경은 Render가 PORT를 넣어줌
+
 
 app.listen(PORT, () => {
   console.log(`📡 서버 실행됨: http://localhost:${PORT}`)
 })
 
-// 🔽 테스트용: 1분마다 알림 체크
-cron.schedule("*/1 * * * *", () => {
-  console.log("⏰ [CRON] Todo 알림 체크 시작")
-  checkAndSendTodoNotifications().catch((err) => {
-    console.error("알림 체크 중 오류:", err)
-  })
+// 매일 오전 9시
+cron.schedule("0 9 * * *", () => {
+  console.log("⏰ [CRON] Todo 알림 체크 시작 (매일 09:00)")
+  checkAndSendTodoNotifications().catch((err) =>
+    console.error("알림 체크 중 오류:", err),
+  )
 })

@@ -5,9 +5,10 @@ import TodoForm from "../components/TodoForm"
 import TodoList from "../components/TodoList"
 import Calendar from "../components/Calendar"
 import Modal from "../components/Modal"
-import { registerPush, sendTestPush } from "../registerPush"
+import { registerPush, sendTestPush, disablePush } from "../registerPush"
 
-function Home() {
+function Home({ auth, onLogout }) {
+  const [pushStatus, setPushStatus] = useState("unknown")
   const [todos, setTodos] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -24,6 +25,7 @@ function Home() {
     const day = String(d.getDate()).padStart(2, "0")
     return `${y}-${m}-${day}`
   }
+
   // 🔹 D-Day 라벨 (Home에서 쓰는 버전)
   const getDdayLabelFromIso = (isoString) => {
     if (!isoString) return null
@@ -99,6 +101,69 @@ function Home() {
     }
   }
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setPushStatus("unsupported")
+      return
+    }
+
+    const perm = Notification.permission
+    const enabledFlag = localStorage.getItem("todotodo_push_enabled") === "true"
+
+    if (perm === "granted" && enabledFlag) {
+      setPushStatus("enabled")
+    } else if (perm === "denied") {
+      setPushStatus("blocked")
+    } else {
+      setPushStatus("notYet")
+    }
+  }, [])
+
+  useEffect(() => {
+    // URLSearchParams로 ?date=2025-12-01 같은 값 읽기
+    const params = new URLSearchParams(window.location.search)
+    const dateParam = params.get("date")
+    if (!dateParam) return
+
+    // 간단한 형식 체크 (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return
+
+    const [yStr, mStr] = dateParam.split("-")
+    const y = Number(yStr)
+    const mIndex = Number(mStr) - 1 // 0~11
+
+    if (Number.isNaN(y) || Number.isNaN(mIndex)) return
+
+    // 🔹 달력 연/월 이동
+    setYear(y)
+    setMonth(mIndex)
+
+    // 🔹 해당 날짜 선택 + 모달/리스트 로딩
+    // (handleSelectDate는 이미 async로 구현되어 있으니 그대로 써도 됨)
+    handleSelectDate(dateParam)
+  }, [])
+
+
+  const handleTogglePush = async () => {
+    // 이미 켜져 있으면 -> 끄기
+    if (pushStatus === "enabled") {
+      const result = await disablePush()
+      if (result === "disabled") {
+        setPushStatus("notYet")
+      }
+      return
+    }
+
+    // 아직 안 켜졌으면 -> 켜기
+    const result = await registerPush()
+    if (result) {
+      setPushStatus(result)
+    }
+  }
+
+  const handleTestPush = async () => {
+    await sendTestPush()
+  }
   // 🔽 날짜 기준 정렬 함수
   const sortTodos = (list, direction = "desc") => {
     const dir = direction === "asc" ? 1 : -1
@@ -186,7 +251,7 @@ function Home() {
 
       const payload = {
         title,
-        description: "TodoTodo",
+        description: "TodoAssistant",
         priority: 2,
         dueDate, // ⬅️ 날짜+시간 들어간 문자열
       }
@@ -403,8 +468,18 @@ function Home() {
     <div className="app-root">
       <div className="app-container">
         <header className="app-header">
-          <h1 className="app-title">Todo Calendar</h1>
-          <p className="app-subtitle">달력을 눌러 날짜별 Todo를 관리해보세요</p>
+          <div className="app-header-text">
+            <h1 className="app-title">Todo Calendar</h1>
+            <p className="app-subtitle">달력을 눌러 날짜별 Todo를 관리해보세요</p>
+          </div>
+
+          <button
+            type="button"
+            className="logout-btn"
+            onClick={onLogout}
+          >
+            로그아웃
+          </button>
         </header>
 
         {/* 🔽 달력 영역 */}
@@ -483,28 +558,29 @@ function Home() {
                   : "전체 Todo 목록"}
             </h2>
 
-            <div className="summary-header-right">
-
-              <button
-                type="button"
-                className="push-enable-btn"
-                onClick={registerPush}
-              >
-                알림 허용
-              </button>
-              
-              <button
-                type="button"
-                className="push-test-btn"
-                onClick={sendTestPush}
-              >
-                테스트 알림
-              </button>
-
+            <div className="summary-filter-group">
+              {/* 1️⃣ 알림 끄기 : 한 줄 전체 */}
               <button
                 type="button"
                 className={
-                  "summary-all-btn" + (activeButton === "all" ? " active" : "")
+                  "summary-filter-btn filter-full" +
+                  (pushStatus === "enabled" ? " active" : "")
+                }
+                onClick={handleTogglePush}
+                disabled={pushStatus === "unsupported" || pushStatus === "blocked"}
+              >
+                {pushStatus === "enabled"
+                  ? "알림 끄기"
+                  : pushStatus === "blocked"
+                    ? "알림 차단됨"
+                    : "알림 켜기"}
+              </button>
+
+              {/* 2️⃣ 전체 / 오늘 : 2열 */}
+              <button
+                type="button"
+                className={
+                  "summary-filter-btn" + (activeButton === "all" ? " active" : "")
                 }
                 onClick={() => {
                   setActiveButton("all")
@@ -514,10 +590,11 @@ function Home() {
               >
                 전체 Todo 보기
               </button>
+
               <button
                 type="button"
                 className={
-                  "summary-today-btn" + (activeButton === "today" ? " active" : "")
+                  "summary-filter-btn" + (activeButton === "today" ? " active" : "")
                 }
                 onClick={() => {
                   setActiveButton("today")
@@ -527,11 +604,13 @@ function Home() {
               >
                 오늘 Todo
               </button>
-              {/* ✅ 완료한 Todo: 다시 누르면 진행중 뷰로 돌아가는 토글 버튼 */}
+
+              {/* 3️⃣ 완료한 Todo : 한 줄 전체 */}
               <button
                 type="button"
                 className={
-                  "view-toggle-btn" + (viewMode === "completed" ? " active" : "")
+                  "summary-filter-btn filter-full" +
+                  (viewMode === "completed" ? " active" : "")
                 }
                 onClick={() => {
                   setActiveButton("completed")
@@ -542,9 +621,11 @@ function Home() {
               >
                 완료한 Todo
               </button>
+
+              {/* 4️⃣ 가까운 일정 순서 : 한 줄 전체 */}
               <button
                 type="button"
-                className="sort-toggle-btn"
+                className="summary-filter-btn filter-full"
                 onClick={handleToggleSortDirection}
               >
                 {sortDirection === "asc" ? "가까운 일정 순서" : "먼 일정 순서"}
@@ -581,6 +662,7 @@ function Home() {
       </div>
     </div>
   )
+
 }
 
 export default Home

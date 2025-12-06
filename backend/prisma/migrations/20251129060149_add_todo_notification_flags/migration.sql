@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE `Todo` ADD COLUMN `notifyD1Sent` BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN `notifyD3Sent` BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN `notifyD7Sent` BOOLEAN NOT NULL DEFAULT false;

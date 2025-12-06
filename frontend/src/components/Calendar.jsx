@@ -1,6 +1,29 @@
 // src/components/Calendar.jsx
 import { useMemo } from "react"
 
+const HOLIDAYS_2026 = {
+  "2025-12-25": "크리스마스",
+  "2026-01-01": "신정",
+  "2026-02-16": "설날 연휴",
+  "2026-02-17": "설날",
+  "2026-02-18": "설날 연휴",
+  "2026-03-01": "3·1절",
+  "2026-03-02": "대체공휴일",
+  "2026-05-05": "어린이날",
+  "2026-05-24": "석가탄신일",
+  "2026-05-25": "대체공휴일",
+  "2026-06-06": "현충일",
+  "2026-08-15": "광복절",
+  "2026-08-17": "대체공휴일",
+  "2026-09-24": "추석 연휴",
+  "2026-09-25": "추석",
+  "2026-09-26": "추석 연휴",
+  "2026-10-03": "개천절",
+  "2026-10-05": "대체공휴일",
+  "2026-10-09": "한글날",
+  "2026-12-25": "크리스마스",
+}
+
 function Calendar({ year, month, selectedDate, onSelectDate, todoDates = [] }) {
   // month: 0~11 (JS Date 방식)
 
@@ -47,6 +70,21 @@ function Calendar({ year, month, selectedDate, onSelectDate, todoDates = [] }) {
     ).padStart(2, "0")}`
     return todoDates.includes(dateStr)
   }
+  const isHolidayOn = (d) => {
+    if (!d) return false
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+      d
+    ).padStart(2, "0")}`
+    return HOLIDAYS_2026[dateStr] != null
+  }
+
+  const getHolidayName = (d) => {
+    if (!d) return null
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+      d
+    ).padStart(2, "0")}`
+    return HOLIDAYS_2026[dateStr] ?? null
+  }
 
   const handleClick = (d) => {
     if (!d) return
@@ -58,45 +96,55 @@ function Calendar({ year, month, selectedDate, onSelectDate, todoDates = [] }) {
 
   return (
     <div className="calendar">
-      {/* ❌ 헤더 제거됨 → Home.jsx에서만 월/년 표시 */}
+      <div className="calendar-header">
+        {/* <span>
+          {year}년 {month + 1}월
+        </span> */}
+      </div>
 
-      {/* 요일 헤더 */}
-      <div className="calendar-weekdays">
+      <div className="calendar-grid">
         {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-          <div key={d} className="calendar-weekday">
+          <div key={d} className="calendar-cell calendar-weekday">
             {d}
           </div>
         ))}
-      </div>
 
-      {/* 날짜 그리드 */}
-      <div className="calendar-grid">
         {weeks.map((week, wi) =>
           week.map((d, di) => {
             const hasTodo = hasTodoOn(d)
-            const selected = d && isSameDate(d)
+            const isHoliday = isHolidayOn(d)
+            const holidayName = getHolidayName(d)
 
-            const classNames = [
-              "calendar-day",
-              d ? "" : "empty",
-              selected ? "selected" : "",
-              hasTodo ? "has-todo" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")
+            const className =
+              "calendar-cell calendar-day" +
+              (d && isSameDate(d) ? " selected" : "") +
+              (hasTodo ? " has-todo" : isHoliday ? " has-holiday" : "")
 
             return (
               <button
                 key={`${wi}-${di}`}
-                className={classNames}
+                className={className}
                 onClick={() => handleClick(d)}
                 disabled={!d}
+                title={holidayName || undefined}
               >
-                {d ?? ""}
-                {hasTodo && <span className="calendar-dot" />}
+                {/* 날짜 숫자 가운데 */}
+                <span className="calendar-day-number">{d ?? ""}</span>
+
+                {/* ✅ 점: Todo가 있으면 빨간 점만, 없고 공휴일만 있으면 파란 점 */}
+                {hasTodo ? (
+                  <div className="calendar-dot todo-dot" />
+                ) : isHoliday ? (
+                  <div className="calendar-dot holiday-dot" />
+                ) : null}
+
+                {/* 휴일 이름 (아래쪽, 늘 같은 위치) */}
+                {holidayName && (
+                  <div className="holiday-label">{holidayName}</div>
+                )}
               </button>
             )
-          }),
+          })
         )}
       </div>
     </div>

@@ -28,9 +28,33 @@ body {
 
 /* === 헤더 영역 === */
 .app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
+.app-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.logout-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 16px;
+  border: 1px solid #ddd;
+  background: #ffffff;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.logout-btn:hover {
+  background: #111111;
+  color: #ffffff;
+  border-color: #111111;
+}
 .app-title {
   font-size: 28px;
   font-weight: 700;
@@ -154,6 +178,63 @@ body {
   margin-top: 8px;
 }
 
+.todo-list-wrapper {
+  position: relative;
+  touch-action: pan-y; /* 세로 스크롤은 유지, 가로는 스와이프 가능 */
+}
+
+.todo-pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.todo-page-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.todo-page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.todo-page-center {
+  text-align: center;
+}
+
+.page-number {
+  font-size: 12px;
+  color: #555;
+}
+
+.page-dots {
+  margin-top: 4px;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.page-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ccc;
+}
+
+.page-dot.active {
+  width: 14px;
+  border-radius: 12px;
+  background: #111;
+}
+
+
 /* === 카드 기본 스타일 === */
 .todo-card {
   background: #f8f8f8;
@@ -217,8 +298,7 @@ body {
   cursor: pointer;
 }
 
-/* === 달력 영역 === */
-
+/* === 달력 전체 영역 === */
 .calendar-wrapper {
   margin-top: 12px;
   margin-bottom: 20px;
@@ -229,6 +309,7 @@ body {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
 }
 
+/* 상단 월 이동 버튼 + 연/월 표시 */
 .calendar-nav {
   display: flex;
   justify-content: space-between;
@@ -236,6 +317,7 @@ body {
   margin-bottom: 8px;
   font-size: 14px;
 }
+
 .calendar-nav span {
   font-size: 16px;
   font-weight: 600;
@@ -260,6 +342,7 @@ body {
   width: 100%;
 }
 
+/* "2026년 5월" 가운데 표시 */
 .calendar-header {
   text-align: center;
   margin-bottom: 6px;
@@ -267,6 +350,7 @@ body {
   font-size: 14px;
 }
 
+/* 요일 + 날짜 격자 */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -278,6 +362,8 @@ body {
   text-align: center;
   font-size: 12px;
 }
+
+/* 요일(일~토) */
 .calendar-weekday {
   font-size: 13px;
   font-weight: 500;
@@ -286,59 +372,98 @@ body {
   margin-top: 15%;
 }
 
-/* 요일 줄 컨테이너 */
+/* 혹시 요일 줄 따로 쓸 때를 위한 컨테이너 (안 써도 무방) */
 .calendar-weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);  /* ← 요일을 가로 7칸으로 배치 */
+  grid-template-columns: repeat(7, 1fr);
   text-align: center;
   color: #777;
   font-size: 0.9rem;
   margin-bottom: 4px;
 }
 
-/* 날짜 버튼 */
+/* === 날짜 셀 === */
 .calendar-day {
   position: relative;
   width: 100%;
-  aspect-ratio: 1/1;
+  aspect-ratio: 1 / 1;
   border-radius: 10px;
   background: #ffffff;
   border: 1px solid #eee;
   cursor: pointer;
-  font-size: 0.9rem;
   transition: all 0.15s ease;
-    font-size: 13px;
+  font-size: 13px;
   font-weight: 400;
   color: #333333;
+
+  display: flex;
+  align-items: center;   /* 날짜 중앙 정렬 */
+  justify-content: center;
 }
-/* Todo 점 */
-.calendar-dot {
+
+/* 날짜 숫자 (그냥 {d}만 써도 되지만 혹시 span 썼다면) */
+.calendar-day-number {
+  font-size: 13px;
+}
+
+/* 휴일 이름 라벨 – 절대 위치로 깔아두기 (칸 높이 안 변함) */
+.holiday-label {
   position: absolute;
-  bottom: 6px;
+  bottom: 4px;
   left: 50%;
   transform: translateX(-50%);
+  font-size: 9px;
+  color: #3b82f6;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* === 점(●) 공통 스타일 === */
+.calendar-dot {
   width: 6px;
   height: 6px;
-  background: #ff4d4d;
-  border-radius: 999px;
+  border-radius: 50%;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
+/* Todo 있는 날: 아래쪽 점 (라벨 위로 살짝) */
+.todo-dot {
+  background: #ff4b4b;
+  top: 6px;
+}
+
+/* 공휴일: 위쪽 점 – 숫자를 가리지 않도록 위로 */
+.holiday-dot {
+  background: #3b82f6;
+  top: 6px;
+}
+
+/* 공휴일인 날 테두리 파랑 */
+.calendar-day.has-holiday {
+  border-color: #c7ddff;
+}
+
+/* ✅ Todo가 있는 날 테두리 빨강 – 공휴일보다 우선하도록 아래쪽에 위치 */
 .calendar-day.has-todo {
-  border: 1px solid #ffd1d1;
+  border-color: #ffd4d4;
 }
 
+/* 선택된 날짜 */
 .calendar-day.selected {
   background: #111111;
   font-weight: 600;
   color: #ffffff;
   border-color: #111111;
 }
+
+/* hover 효과 (빈 칸 제외용 .empty 안 쓰고 있으면 그냥 이대로) */
 .calendar-day:hover:not(.empty) {
-  border-color: #111;
+  border-color: #111111;
 }
-.calendar-day.has-todo {
-  border-color: #ffd4d4;
-}
+
+
 /* === 날짜 요약 / 전체 Todo 섹션 === */
 .summary-section {
   margin-top: 24px;
@@ -348,7 +473,6 @@ body {
   font-size: 18px;
   margin: 0 0 10px;
 }
-
 /* === 모달 기본 === */
 .modal-backdrop {
   position: fixed;
@@ -430,52 +554,72 @@ body {
   font-size: 11px;
 }
 
-/* 요약 헤더 */
+/* 전체 Summary 섹션 헤더 */
 .summary-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* 왼쪽 제목 + (원하면) 우측에 작은 버튼 넣을 때 사용 */
+.summary-title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
 }
 
-.summary-header-right {
-  display: flex;
-  flex-wrap: wrap;     /* 줄바꿈 허용 */
-  gap: 8px;            /* 버튼 사이 간격 */
-  justify-content: flex-start;
-  align-items: center;
+.summary-title-row h2 {
+  margin: 0;
+  font-size: 16px;
 }
 
-/* 전체 Todo 보기 버튼 */
-.summary-all-btn,
-.sort-toggle-btn,
-.view-toggle-btn,
-.summary-today-btn {
-  border: 1px solid #e4e4e4;
-  background: #ffffff;
-  color: #111111;
+/*  버튼 묶음: 1,2,1,1 레이아웃을 위한 그리드 */
+.summary-filter-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2열 */
+  gap: 8px;
+}
+
+/* 공통 버튼 스타일 */
+.summary-filter-btn {
+  width: 100%;
+  padding: 10px 0;
   border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 12px;
+  border: 1px solid #ddd;
+  background: #ffffff;
+  font-size: 13px;
+  text-align: center;
   cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
-.summary-all-btn:hover,
-.sort-toggle-btn:hover,
-.view-toggle-btn:hover,
-.summary-today-btn:hover {
-  background: #f5f5f5;
+/* 한 줄 전체 폭 쓰는 버튼 (알림 끄기 / 완료한 Todo / 정렬 버튼) */
+.filter-full {
+  grid-column: 1 / -1;
 }
 
-.summary-all-btn.active,
-.summary-today-btn.active,
-.view-toggle-btn.active {
-  border-color: #111111;
+/* 활성화 된 버튼 */
+.summary-filter-btn.active {
   background: #111111;
   color: #ffffff;
+  border-color: #111111;
+}
+
+/* 호버 */
+/* .summary-filter-btn:hover:not(:disabled) {
+  background: #0e0d0d;
+} */
+
+/* (필요하면) 비활성화 상태 */
+.summary-filter-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* D-Day 라벨 */
+
 .todo-dday {
   margin-left: 6px;
   padding: 2px 8px;
@@ -573,6 +717,21 @@ body {
   border: 2px solid #4da3ff;
 }
 
+.push-enable-btn,
+.push-test-btn {
+  margin-left: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #ddd;
+  background: #f8f8f8;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.push-enable-btn[disabled] {
+  cursor: default;
+  opacity: 0.6;
+}
 
 
 /* === 반응형 (태블릿 이상에서 여백/폭 넓히기) === */
@@ -606,23 +765,150 @@ body {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .summary-header {
-    flex-direction: column;      /* 제목 위, 버튼 아래로 세로 배치 */
-    align-items: flex-start;
-    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 
   .summary-header-right {
+    display: grid;
     width: 100%;
-    justify-content: space-between;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2열 */
+    gap: 8px;
   }
 
-  .summary-header-right button {
-    flex: 1 1 48%;               /* 한 줄에 버튼 2개씩 */
-    font-size: 12px;
-    padding: 6px 8px;
+  .summary-header-right > button {
+    width: 100%;           /* 각 칸 꽉 채우기 */
     text-align: center;
-    white-space: nowrap;         /* 줄 안에서 단어가 꺾이지 않게 */
+  }
+
+  /* 알림 버튼은 한 줄 전체 사용 */
+  .push-enable-btn {
+    grid-column: 1 / -1;
+  }
+
+  /* 정렬 버튼도 한 줄 전체 사용하고 싶으면 */
+  .sort-toggle-btn {
+    grid-column: 1 / -1;
+  }
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at top left, #ff9a9e 0, #fdfbfb 45%, #111111 100%);
+  /* TodoAssistant 느낌 나는 은은한 그라데이션 */
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* 상단 로고 영역 */
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.login-logo-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff4b6a, #ff9a9e);
+}
+
+.login-logo-text {
+  letter-spacing: 0.03em;
+}
+
+/* 타이틀 & 서브텍스트 */
+.login-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 4px 0 0;
+}
+
+.login-subtitle {
+  font-size: 13px;
+  color: #666666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Google 로그인 영역 */
+.login-google-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.login-google-hint {
+  font-size: 11px;
+  color: #999999;
+  margin: 0;
+  text-align: center;
+}
+
+/* PWA 설치 버튼 */
+.login-install-btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 10px 0;
+  border-radius: 999px;
+  border: 0;
+  background: #111111;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.login-install-btn:hover {
+  background: #222222;
+}
+
+.login-install-btn:active {
+  transform: translateY(1px);
+}
+
+.login-installed-text {
+  font-size: 11px;
+  color: #888888;
+  text-align: center;
+  margin: 4px 0 0;
+}
+
+/* 작은 화면 대응 */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 22px 18px 18px;
+    border-radius: 20px;
+  }
+
+  .login-title {
+    font-size: 18px;
   }
 }
