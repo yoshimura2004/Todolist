@@ -1,8 +1,7 @@
 // src/pages/Login.jsx
 import { useEffect, useState } from "react"
 import { GoogleLogin } from "@react-oauth/google"
-import axios from "axios"
-
+import api from "../api" 
 function Login({ onLogin }) {
   const [installPromptEvent, setInstallPromptEvent] = useState(null)
   const [isInstalled, setIsInstalled] = useState(false)
@@ -48,19 +47,17 @@ function Login({ onLogin }) {
   // ✅ 구글 로그인 성공 시
 const handleLoginSuccess = async (credentialResponse) => {
   try {
-    const res = await axios.post(
-      "/api/auth/google",
-      { credential: credentialResponse.credential },
-      { withCredentials: true },                      // 🔥 쿠키 받기
-    )
+    const res = await api.post("/auth/google", {
+      credential: credentialResponse.credential,
+    })
 
     const data = res.data
 
-    // ✅ 이제 토큰은 쿠키에만 있음
-    // localStorage에는 유저 정보만(선택 사항)
+    // ✅ 토큰은 HttpOnly 쿠키에 있고,
+    //    프론트에는 유저 정보만 저장
     localStorage.setItem("todotodo_user", JSON.stringify(data.user))
 
-    onLogin(data)   // App 쪽에서 user 상태로 관리
+    onLogin(data) // 기존 구조 유지 (data 안에 user 있음)
   } catch (err) {
     console.error("Google 로그인 실패:", err)
     alert("로그인 중 오류가 발생했습니다.")
