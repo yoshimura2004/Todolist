@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import Login from "./pages/Login"
 import Home from "./pages/Home"
-
+import api from "./api" 
 function App() {
   const [auth, setAuth] = useState(null)
 
@@ -21,16 +21,16 @@ function App() {
   }
 
   // ✅ 로그아웃: 서버 쿠키 지우기 + 클라이언트 상태 초기화
-  const handleLogout = async () => {
-    try {
-      await api.post("/auth/logout")     // 서버가 todotodo_token 쿠키 삭제
-    } catch (e) {
-      console.error("logout error", e)
-      // 실패해도 일단 클라이언트 상태는 정리
-    }
+const handleLogout = async () => {
+  try {
+    await api.post("/auth/logout")
+  } catch (err) {
+    console.error("logout error:", err)
+  } finally {
     localStorage.removeItem("todotodo_user")
     setAuth(null)
   }
+}
 
   // 로그인 안 되었으면 Login 화면
   if (!auth) {

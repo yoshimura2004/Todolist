@@ -118,7 +118,7 @@ res
 app.post("/api/auth/logout", (req, res) => {
   const isProd = process.env.NODE_ENV === "production"
 
-  res
+  return res
     .clearCookie("todotodo_token", {
       httpOnly: true,
       secure: isProd,
