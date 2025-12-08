@@ -47,22 +47,14 @@ function Login({ onLogin }) {
   // ✅ 구글 로그인 성공 시
 const handleLoginSuccess = async (credentialResponse) => {
   try {
-    const res = await axios.post(
-      "/api/auth/google",
-      { credential: credentialResponse.credential },
-      { withCredentials: true },
+    const res = await api.post(
+      "/auth/google", // ✅ baseURL에 이미 /api가 포함되어 있음
+      { credential: credentialResponse.credential }
     )
 
-    const { user, token } = res.data
-
-    // ✅ 토큰은 HttpOnly 쿠키에 있고,
-    //    프론트에는 유저 정보만 저장
-    if (token) {
-      localStorage.setItem("todotodo_token", token)
-    }
-    localStorage.setItem("todotodo_user", JSON.stringify(user))
-
-    onLogin({ user })
+    const data = res.data
+    localStorage.setItem("todotodo_user", JSON.stringify(data.user))
+    onLogin(data)
   } catch (err) {
     console.error("Google 로그인 실패:", err)
     alert("로그인 중 오류가 발생했습니다.")
