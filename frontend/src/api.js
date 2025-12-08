@@ -7,7 +7,13 @@ const api = axios.create({
   withCredentials: true,   // ✅ 쿠키(JWT) 자동 포함
 })
 
-
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("todotodo_token")
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
 
 export const todoApi = {
   getTodos() {

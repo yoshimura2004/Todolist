@@ -23,19 +23,30 @@ webpush.setVapidDetails(
 )
 // 🔐 로그인 확인 미들웨어
 function authMiddleware(req, res, next) {
-  const token = req.cookies?.todotodo_token          // 🔥 쿠키에서 읽기
+  let token = null
+
+  // 1) Authorization: Bearer xxx 헤더 우선
+  const authHeader = req.headers.authorization
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice(7)
+  }
+
+  // 2) 없으면 쿠키에서 시도
+  if (!token && req.cookies?.todotodo_token) {
+    token = req.cookies.todotodo_token
+  }
 
   if (!token) {
-    return res.status(401).json({ message: "로그인이 필요합니다." })
+    return res.status(401).json({ message: "Not authenticated" })
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET)
-    req.user = decoded
+    const payload = jwt.verify(token, process.env.JWT_SECRET)
+    req.user = payload
     next()
   } catch (err) {
-    console.error("JWT verify error:", err)
-    return res.status(401).json({ message: "토큰이 유효하지 않습니다." })
+    console.error("auth error:", err)
+    res.status(401).json({ message: "Invalid token" })
   }
 }
 app.use(cors({
@@ -83,33 +94,30 @@ app.post("/api/auth/google", async (req, res) => {
     })
 
     // 3) 우리 서비스용 JWT 발급 (User.id 사용!)
-const token = jwt.sign(
-  {
-    userId: user.id,
-    email: user.email,
-    name: user.name,
-  },
-  JWT_SECRET,
-  { expiresIn: "7d" },
-)
+  const token = jwt.sign(
+    { id: user.id, email: user.email, name: user.name },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  )
 
-// 🔥 httpOnly 쿠키로 토큰 전달
-const isProd = process.env.NODE_ENV === "production"
+  const isProd = process.env.NODE_ENV === "production"
 
-res
-  .cookie("todotodo_token", token, {
-    httpOnly: true,                          // JS에서 접근 불가
-    secure: isProd,                          // 배포(HTTPS)에서는 true
-    sameSite: isProd ? "none" : "lax",       // 프론트/백 도메인 분리 대비
-    maxAge: 7 * 24 * 60 * 60 * 1000,         // 7일
-  })
-  .json({
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-    },
-  })
+  res
+    .cookie("todotodo_token", token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    })
+    .json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
+      token,   // 👈 프론트가 localStorage에 저장해서 쓸 수 있게 추가
+    })
+
   } catch (err) {
     console.error("Google auth error:", err)
     res.status(401).json({ message: "Google 로그인 실패" })
@@ -118,7 +126,7 @@ res
 app.post("/api/auth/logout", (req, res) => {
   const isProd = process.env.NODE_ENV === "production"
 
-  return res
+  res
     .clearCookie("todotodo_token", {
       httpOnly: true,
       secure: isProd,

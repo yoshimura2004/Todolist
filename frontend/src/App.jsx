@@ -28,6 +28,7 @@ const handleLogout = async () => {
     console.error("logout error:", err)
   } finally {
     localStorage.removeItem("todotodo_user")
+    localStorage.removeItem("todotodo_token")  // 👈 추가
     setAuth(null)
   }
 }
