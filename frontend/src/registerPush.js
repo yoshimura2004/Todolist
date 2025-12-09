@@ -1,5 +1,6 @@
 // frontend/src/registerPush.js
 import { VAPID_PUBLIC_KEY } from "./pushConfig"
+import api from "./api"   // 👈 axios 인스턴스 불러오기
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
@@ -14,7 +15,7 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray
 }
 
-export async function registerPush() {
+export async function registerPush(userId) {
   if (!("serviceWorker" in navigator) || !("Notification" in window)) {
     alert("이 브라우저에서는 알림을 지원하지 않습니다.")
     return "unsupported"
@@ -26,7 +27,6 @@ export async function registerPush() {
       alert("알림이 브라우저에서 차단되어 있습니다.\n브라우저 설정에서 권한을 변경해야 합니다.")
       return "blocked"
     }
-    // default 상태 (아직 결정 전)
     return "notYet"
   }
 
@@ -37,15 +37,10 @@ export async function registerPush() {
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
   })
 
-  await fetch("http://localhost:4000/api/push/subscribe", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      subscription,
-      userId: 1,
-    }),
+  // 🔥🔥 이제 localhost 사용 금지! axios(api.js)로 전송
+  await api.post("/push/subscribe", {
+    subscription,
+    userId,
   })
 
   localStorage.setItem("todotodo_push_enabled", "true")
@@ -54,12 +49,10 @@ export async function registerPush() {
 }
 
 export async function sendTestPush() {
-  await fetch("http://localhost:4000/api/push/test", {
-    method: "POST",
-  })
+  // 🔥 axios로 변경
+  await api.post("/push/test")
 }
 
-// 푸시 알림 해제
 export async function disablePush() {
   if (!("serviceWorker" in navigator)) {
     return "unsupported"
@@ -76,8 +69,6 @@ export async function disablePush() {
     await subscription.unsubscribe()
   }
 
-  // 로컬 플래그 제거
   localStorage.removeItem("todotodo_push_enabled")
   return "disabled"
 }
-
