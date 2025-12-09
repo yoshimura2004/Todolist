@@ -28,14 +28,24 @@ webpush.setVapidDetails(
 // 🔐 로그인 확인 미들웨어
 export function authMiddleware(req, res, next) {
   try {
-    const token = req.cookies?.todotodo_token
+    let token = req.cookies?.todotodo_token
+
+    // 1️⃣ 쿠키에 없으면 Authorization 헤더에서 Bearer 토큰 찾기
+    if (!token) {
+      const authHeader = req.headers.authorization || req.headers.Authorization
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.slice(7) // "Bearer " 이후 부분
+      }
+    }
 
     if (!token) {
-      console.log("🚫 authMiddleware: no todotodo_token cookie")
+      console.log("🚫 authMiddleware: no token in cookie or Authorization header")
       return res.status(401).json({ message: "로그인이 필요합니다." })
     }
 
     const decoded = jwt.verify(token, JWT_SECRET)
+
+    // 옛날/새 토큰 둘 다 대응
     const userId = decoded.id ?? decoded.userId
 
     if (!userId) {
@@ -59,6 +69,7 @@ export function authMiddleware(req, res, next) {
       .json({ message: "로그인 세션이 만료되었습니다. 다시 로그인해 주세요." })
   }
 }
+
 
 // CORS & 기본 미들웨어
 app.use(
