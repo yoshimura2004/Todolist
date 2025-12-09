@@ -22,31 +22,29 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 )
 // 🔐 로그인 확인 미들웨어
-function authMiddleware(req, res, next) {
-  let token = null
-
-  // 1) Authorization: Bearer xxx 헤더 우선
-  const authHeader = req.headers.authorization
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.slice(7)
-  }
-
-  // 2) 없으면 쿠키에서 시도
-  if (!token && req.cookies?.todotodo_token) {
-    token = req.cookies.todotodo_token
-  }
-
-  if (!token) {
-    return res.status(401).json({ message: "Not authenticated" })
-  }
-
+export function authMiddleware(req, res, next) {
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET)
-    req.user = payload
+    const token = req.cookies?.todotodo_token
+
+    if (!token) {
+      return res.status(401).json({ message: "로그인이 필요합니다." })
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+    // ✅ 토큰에 { id, email, name } 으로 들어 있으므로 이렇게 수정!
+    req.user = {
+      userId: decoded.id,
+      email: decoded.email,
+      name: decoded.name,
+    }
+
     next()
   } catch (err) {
-    console.error("auth error:", err)
-    res.status(401).json({ message: "Invalid token" })
+    console.error("authMiddleware JWT error:", err)
+    return res
+      .status(401)
+      .json({ message: "로그인 세션이 만료되었습니다. 다시 로그인해 주세요." })
   }
 }
 app.use(cors({
