@@ -34,12 +34,20 @@ export function authMiddleware(req, res, next) {
       return res.status(401).json({ message: "로그인이 필요합니다." })
     }
 
-    // ✅ 위에서 정의한 JWT_SECRET 사용
     const decoded = jwt.verify(token, JWT_SECRET)
 
-    // 토큰 페이로드: { id, email, name }
+    // ✅ 옛날 토큰(userId) / 새 토큰(id) 모두 지원
+    const userId = decoded.id ?? decoded.userId
+
+    if (!userId) {
+      console.error("❌ JWT payload에 id / userId가 없습니다:", decoded)
+      return res
+        .status(401)
+        .json({ message: "잘못된 로그인 정보입니다. 다시 로그인해 주세요." })
+    }
+
     req.user = {
-      userId: decoded.id,
+      userId,
       email: decoded.email,
       name: decoded.name,
     }
