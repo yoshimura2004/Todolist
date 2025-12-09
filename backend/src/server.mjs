@@ -31,16 +31,15 @@ export function authMiddleware(req, res, next) {
     const token = req.cookies?.todotodo_token
 
     if (!token) {
+      console.log("🚫 authMiddleware: no todotodo_token cookie")
       return res.status(401).json({ message: "로그인이 필요합니다." })
     }
 
     const decoded = jwt.verify(token, JWT_SECRET)
-
-    // ✅ 옛날 토큰(userId) / 새 토큰(id) 모두 지원
     const userId = decoded.id ?? decoded.userId
 
     if (!userId) {
-      console.error("❌ JWT payload에 id / userId가 없습니다:", decoded)
+      console.log("🚫 authMiddleware: token has no id/userId", decoded)
       return res
         .status(401)
         .json({ message: "잘못된 로그인 정보입니다. 다시 로그인해 주세요." })
