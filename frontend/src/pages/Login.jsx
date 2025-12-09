@@ -47,14 +47,23 @@ function Login({ onLogin }) {
   // ✅ 구글 로그인 성공 시
 const handleLoginSuccess = async (credentialResponse) => {
   try {
-    const res = await api.post(
-      "/auth/google", // ✅ baseURL에 이미 /api가 포함되어 있음
-      { credential: credentialResponse.credential }
-    )
+    const res = await api.post("/auth/google", {
+      credential: credentialResponse.credential,
+    })
 
     const data = res.data
+
+    // 👇 유저 정보 저장
     localStorage.setItem("todotodo_user", JSON.stringify(data.user))
-    onLogin(data)
+
+    // 👇 🔥 JWT 토큰도 꼭 저장!! (api 인터셉터에서 사용)
+    if (data.token) {
+      localStorage.setItem("todotodo_token", data.token)
+    }
+
+    // 필요하다면 여기서 페이지 이동 or 상태 업데이트
+    onLogin(data)         // 기존 코드 유지
+    // 예: window.location.href = "/"
   } catch (err) {
     console.error("Google 로그인 실패:", err)
     alert("로그인 중 오류가 발생했습니다.")
