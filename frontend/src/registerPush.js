@@ -1,6 +1,6 @@
 // frontend/src/registerPush.js
 import { VAPID_PUBLIC_KEY } from "./pushConfig"
-import api from "./api"   // 👈 axios 인스턴스 불러오기
+import api from "./api"
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
@@ -17,14 +17,12 @@ function urlBase64ToUint8Array(base64String) {
 
 export async function registerPush(userId) {
   if (!("serviceWorker" in navigator) || !("Notification" in window)) {
-    alert("이 브라우저에서는 알림을 지원하지 않습니다.")
     return "unsupported"
   }
 
   const perm = await Notification.requestPermission()
   if (perm !== "granted") {
     if (perm === "denied") {
-      alert("알림이 브라우저에서 차단되어 있습니다.\n브라우저 설정에서 권한을 변경해야 합니다.")
       return "blocked"
     }
     return "notYet"
@@ -37,19 +35,22 @@ export async function registerPush(userId) {
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
   })
 
-  // 🔥🔥 이제 localhost 사용 금지! axios(api.js)로 전송
-  await api.post("/push/subscribe", {
-    subscription,
-    userId,
-  })
+  // 📡 서버 저장 (느릴 수 있지만, 여기서 에러만 잡고 UI는 별도로 처리)
+  try {
+    await api.post("/push/subscribe", {
+      subscription,
+      userId,
+    })
+  } catch (err) {
+    console.error("푸시 구독 저장 실패:", err)
+    // 필요하면 여기서 "serverError" 같은 상태를 추가로 리턴해도 됨
+  }
 
   localStorage.setItem("todotodo_push_enabled", "true")
-  alert("푸시 알림이 활성화되었습니다!")
   return "enabled"
 }
 
 export async function sendTestPush() {
-  // 🔥 axios로 변경
   await api.post("/push/test")
 }
 

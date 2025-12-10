@@ -147,17 +147,23 @@ function Home({ auth, onLogout }) {
   const handleTogglePush = async () => {
     // 이미 켜져 있으면 -> 끄기
     if (pushStatus === "enabled") {
+      setPushStatus("loading")
       const result = await disablePush()
       if (result === "disabled") {
         setPushStatus("notYet")
+      } else if (result) {
+        setPushStatus(result)
       }
       return
     }
 
     // 아직 안 켜졌으면 -> 켜기
-    const result = await registerPush()
+    setPushStatus("loading")
+    const result = await registerPush(auth?.user?.id) // 필요하면 userId 전달
     if (result) {
       setPushStatus(result)
+    } else {
+      setPushStatus("notYet")
     }
   }
 
@@ -227,54 +233,54 @@ function Home({ auth, onLogout }) {
   // src/pages/Home.jsx 중 일부
 
   // ⬇️ 기존: const handleAddTodo = async ({ title }) => {
-const handleAddTodo = async ({ title, ampm, hour, minute }) => {
-  try {
-    setLoading(true)
-    setError(null)
+  const handleAddTodo = async ({ title, ampm, hour, minute }) => {
+    try {
+      setLoading(true)
+      setError(null)
 
-    let dueDate = null
+      let dueDate = null
 
-    if (selectedDate && ampm && hour != null && minute != null) {
-      let h24 = Number(hour)
+      if (selectedDate && ampm && hour != null && minute != null) {
+        let h24 = Number(hour)
 
-      // 12시간 → 24시간 변환
-      if (ampm === "PM" && h24 < 12) h24 += 12
-      if (ampm === "AM" && h24 === 12) h24 = 0
+        // 12시간 → 24시간 변환
+        if (ampm === "PM" && h24 < 12) h24 += 12
+        if (ampm === "AM" && h24 === 12) h24 = 0
 
-      const hh = String(h24).padStart(2, "0")
-      const mm = String(minute).padStart(2, "0")
+        const hh = String(h24).padStart(2, "0")
+        const mm = String(minute).padStart(2, "0")
 
-      // ✅ 1) 로컬(KST) 기준 Date 객체 생성
-      const localDate = new Date(`${selectedDate}T${hh}:${mm}:00`)
+        // ✅ 1) 로컬(KST) 기준 Date 객체 생성
+        const localDate = new Date(`${selectedDate}T${hh}:${mm}:00`)
 
-      // ✅ 2) UTC ISO 문자열로 변환해서 서버로 보냄
-      //    예: "2025-12-22T09:00:00.000Z"  (KST 18:00)
-      dueDate = localDate.toISOString()
+        // ✅ 2) UTC ISO 문자열로 변환해서 서버로 보냄
+        //    예: "2025-12-22T09:00:00.000Z"  (KST 18:00)
+        dueDate = localDate.toISOString()
+      }
+
+      const payload = {
+        title,
+        description: "TodoAssistant",
+        priority: 2,
+        dueDate, // ISO 문자열 (UTC)
+      }
+
+      await todoApi.createTodo(payload)
+
+      const all = await todoApi.getTodos()
+      setTodos(all)
+
+      if (selectedDate) {
+        const list = await todoApi.getTodosByDate(selectedDate)
+        setDailyTodos(list)
+      }
+    } catch (err) {
+      console.error(err)
+      setError("Todo 추가 중 오류가 발생했습니다.")
+    } finally {
+      setLoading(false)
     }
-
-    const payload = {
-      title,
-      description: "TodoAssistant",
-      priority: 2,
-      dueDate, // ISO 문자열 (UTC)
-    }
-
-    await todoApi.createTodo(payload)
-
-    const all = await todoApi.getTodos()
-    setTodos(all)
-
-    if (selectedDate) {
-      const list = await todoApi.getTodosByDate(selectedDate)
-      setDailyTodos(list)
-    }
-  } catch (err) {
-    console.error(err)
-    setError("Todo 추가 중 오류가 발생했습니다.")
-  } finally {
-    setLoading(false)
   }
-}
 
   const handleDeleteTodo = async (id) => {
     const ok = window.confirm("정말 삭제하시겠습니까?")
@@ -570,13 +576,19 @@ const handleAddTodo = async ({ title, ampm, hour, minute }) => {
                   (pushStatus === "enabled" ? " active" : "")
                 }
                 onClick={handleTogglePush}
-                disabled={pushStatus === "unsupported" || pushStatus === "blocked"}
+                disabled={
+                  pushStatus === "unsupported" ||
+                  pushStatus === "blocked" ||
+                  pushStatus === "loading"
+                }
               >
-                {pushStatus === "enabled"
-                  ? "알림 끄기"
-                  : pushStatus === "blocked"
-                    ? "알림 차단됨"
-                    : "알림 켜기"}
+                {pushStatus === "loading"
+                  ? "알림 설정 중..."
+                  : pushStatus === "enabled"
+                    ? "알림 끄기"
+                    : pushStatus === "blocked"
+                      ? "알림 차단됨 (브라우저 설정 확인)"
+                      : "알림 켜기"}
               </button>
 
               {/* 2️⃣ 전체 / 오늘 : 2열 */}
