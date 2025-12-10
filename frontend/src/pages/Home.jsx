@@ -227,51 +227,54 @@ function Home({ auth, onLogout }) {
   // src/pages/Home.jsx 중 일부
 
   // ⬇️ 기존: const handleAddTodo = async ({ title }) => {
-  const handleAddTodo = async ({ title, ampm, hour, minute }) => {
-    try {
-      setLoading(true)
-      setError(null)
+const handleAddTodo = async ({ title, ampm, hour, minute }) => {
+  try {
+    setLoading(true)
+    setError(null)
 
-      // 🔹 날짜 + 시간 합쳐서 ISO 문자열 만들기
-      let dueDate = selectedDate ?? null
+    let dueDate = null
 
-      if (selectedDate && ampm && hour != null && minute != null) {
-        let h24 = Number(hour)
+    if (selectedDate && ampm && hour != null && minute != null) {
+      let h24 = Number(hour)
 
-        // 12시간 → 24시간 변환
-        if (ampm === "PM" && h24 < 12) h24 += 12
-        if (ampm === "AM" && h24 === 12) h24 = 0
+      // 12시간 → 24시간 변환
+      if (ampm === "PM" && h24 < 12) h24 += 12
+      if (ampm === "AM" && h24 === 12) h24 = 0
 
-        const hh = String(h24).padStart(2, "0")
-        const mm = String(minute).padStart(2, "0")
+      const hh = String(h24).padStart(2, "0")
+      const mm = String(minute).padStart(2, "0")
 
-        // 예: "2025-11-27T21:30:00"
-        dueDate = `${selectedDate}T${hh}:${mm}:00`
-      }
+      // ✅ 1) 로컬(KST) 기준 Date 객체 생성
+      const localDate = new Date(`${selectedDate}T${hh}:${mm}:00`)
 
-      const payload = {
-        title,
-        description: "TodoAssistant",
-        priority: 2,
-        dueDate, // ⬅️ 날짜+시간 들어간 문자열
-      }
-
-      await todoApi.createTodo(payload)
-
-      const all = await todoApi.getTodos()
-      setTodos(all)
-
-      if (selectedDate) {
-        const list = await todoApi.getTodosByDate(selectedDate)
-        setDailyTodos(list)
-      }
-    } catch (err) {
-      console.error(err)
-      setError("Todo 추가 중 오류가 발생했습니다.")
-    } finally {
-      setLoading(false)
+      // ✅ 2) UTC ISO 문자열로 변환해서 서버로 보냄
+      //    예: "2025-12-22T09:00:00.000Z"  (KST 18:00)
+      dueDate = localDate.toISOString()
     }
+
+    const payload = {
+      title,
+      description: "TodoAssistant",
+      priority: 2,
+      dueDate, // ISO 문자열 (UTC)
+    }
+
+    await todoApi.createTodo(payload)
+
+    const all = await todoApi.getTodos()
+    setTodos(all)
+
+    if (selectedDate) {
+      const list = await todoApi.getTodosByDate(selectedDate)
+      setDailyTodos(list)
+    }
+  } catch (err) {
+    console.error(err)
+    setError("Todo 추가 중 오류가 발생했습니다.")
+  } finally {
+    setLoading(false)
   }
+}
 
   const handleDeleteTodo = async (id) => {
     const ok = window.confirm("정말 삭제하시겠습니까?")
