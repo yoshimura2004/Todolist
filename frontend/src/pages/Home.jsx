@@ -235,7 +235,6 @@ function Home({ auth, onLogout }) {
   // ⬇️ 기존: const handleAddTodo = async ({ title }) => {
   const handleAddTodo = async ({ title, ampm, hour, minute }) => {
     try {
-      setLoading(true)
       setError(null)
 
       let dueDate = null
@@ -265,22 +264,24 @@ function Home({ auth, onLogout }) {
         dueDate, // ISO 문자열 (UTC)
       }
 
-      await todoApi.createTodo(payload)
+    // ✅ 서버에서 새 Todo 한 개만 받아옴
+    const newTodo = await todoApi.createTodo(payload)
 
-      const all = await todoApi.getTodos()
-      setTodos(all)
+    // ✅ 전체 목록에 바로 반영 (낙관적 업데이트 형태)
+    setTodos((prev) => [newTodo, ...prev])
 
-      if (selectedDate) {
-        const list = await todoApi.getTodosByDate(selectedDate)
-        setDailyTodos(list)
+    // ✅ 만약 선택된 날짜와 새 Todo 날짜가 같다면, dailyTodos에도 추가
+    if (selectedDate && newTodo.dueDate) {
+      const dateKey = toLocalDateStr(newTodo.dueDate) // "YYYY-MM-DD"
+      if (dateKey === selectedDate) {
+        setDailyTodos((prev) => [newTodo, ...prev])
       }
-    } catch (err) {
-      console.error(err)
-      setError("Todo 추가 중 오류가 발생했습니다.")
-    } finally {
-      setLoading(false)
     }
+  } catch (err) {
+    console.error(err)
+    setError("Todo 추가 중 오류가 발생했습니다.")
   }
+}
 
   const handleDeleteTodo = async (id) => {
     const ok = window.confirm("정말 삭제하시겠습니까?")
@@ -302,7 +303,6 @@ function Home({ auth, onLogout }) {
 
   const handleToggleTodo = async (id) => {
     try {
-      setLoading(true)
       setError(null)
 
       const updated = await todoApi.toggleTodoStatus(id)
@@ -315,14 +315,11 @@ function Home({ auth, onLogout }) {
     } catch (err) {
       console.error(err)
       setError("상태 변경 중 오류가 발생했습니다.")
-    } finally {
-      setLoading(false)
-    }
+    } 
   }
 
   const handleUpdateTodo = async (id, payload) => {
     try {
-      setLoading(true)
       setError(null)
 
       const updated = await todoApi.updateTodo(id, payload)
@@ -335,9 +332,7 @@ function Home({ auth, onLogout }) {
     } catch (err) {
       console.error(err)
       setError("수정 중 오류가 발생했습니다.")
-    } finally {
-      setLoading(false)
-    }
+    } 
   }
 
   // 🔽 달력에서 날짜 클릭 / 다가오는 일정 클릭 시
@@ -354,7 +349,6 @@ function Home({ auth, onLogout }) {
 
       setSelectedDate(dateStr)
       setModalOpen(true)
-      setLoading(true)
       setError(null)
 
       const list = await todoApi.getTodosByDate(dateStr)
@@ -362,9 +356,7 @@ function Home({ auth, onLogout }) {
     } catch (err) {
       console.error(err)
       setError("날짜별 Todo 조회 중 오류가 발생했습니다.")
-    } finally {
-      setLoading(false)
-    }
+    } 
   }
 
   const handlePrevMonth = () => {
